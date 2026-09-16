@@ -19,7 +19,8 @@
  *   <CONVERSATION_FLOW_ID>  -> the flow id, created or reused (agent only)
  *
  * Placeholders you must edit by hand in the JSON before a real push:
- *   <VOICE_ID>        pick one in the Retell dashboard under Voices, then
+ *   <VOICE_ID>        resolved automatically from your account's voice list.
+ *                     Override with VOICE_ID=... . Previously you had to
  *                     paste its id into retell/demo-agent.json.
  *   <DISPATCH_E164>   the number the transfer node dials, E.164, for example
  *                     +13125550137. Leave it as it is for a demo with no real
@@ -113,14 +114,81 @@ function substitute(doc: unknown, values: Record<string, string>): { body: any; 
   return { body: JSON.parse(json), leftover };
 }
 
+/** Placeholders that are safe to leave unfilled in a demo. */
+const OPTIONAL_PLACEHOLDERS = new Set(["<DISPATCH_E164>"]);
+
 function guardPlaceholders(label: string, leftover: string[]): void {
-  if (!leftover.length) return;
-  const msg = `${label}: unfilled placeholders ${leftover.join(", ")}`;
+  const blocking = leftover.filter((p) => !OPTIONAL_PLACEHOLDERS.has(p));
+  for (const p of leftover.filter((x) => OPTIONAL_PLACEHOLDERS.has(x))) {
+    console.log(`  note: ${label} leaves ${p} unset, which is fine for a demo`);
+  }
+  if (!blocking.length) return;
+  const msg = `${label}: unfilled placeholders ${blocking.join(", ")}`;
   if (dryRun || allowPlaceholders) {
     console.warn(`  warning: ${msg}`);
     return;
   }
   fail(`${msg}\n  Edit them in the JSON, or pass --allow-placeholders to push anyway.`);
+}
+
+type Voice = {
+  voice_id: string;
+  voice_name?: string;
+  provider?: string;
+  gender?: string;
+  accent?: string;
+};
+
+/**
+ * Picks a voice from the account rather than making you hunt for an id.
+ *
+ * Retell does not publish its voice ids, and they differ per account, so the
+ * only reliable source is the account itself. Preference order is an American
+ * accent from a provider likely to sit inside the BAA and the cheaper tier,
+ * falling back to whatever the account offers.
+ *
+ * Override at any time with VOICE_ID=... or by editing the JSON.
+ */
+async function resolveVoice(): Promise<string | null> {
+  if (process.env.VOICE_ID) {
+    console.log(`- voice: using VOICE_ID from the environment, ${process.env.VOICE_ID}`);
+    return process.env.VOICE_ID;
+  }
+
+  let voices: Voice[];
+  try {
+    const res = await retell("GET", "/list-voices");
+    voices = Array.isArray(res) ? res : (res?.voices ?? []);
+  } catch (err) {
+    console.warn(`  warning: could not list voices, ${err instanceof Error ? err.message : "unknown error"}`);
+    return null;
+  }
+
+  if (!voices.length) return null;
+
+  const american = (v: Voice) => (v.accent ?? "").toLowerCase().includes("american");
+  const cheap = (v: Voice) => {
+    const p = (v.provider ?? "").toLowerCase();
+    // ElevenLabs costs $0.040 a minute against $0.015 for the others, and its
+    // BAA coverage through Retell is unconfirmed, so prefer the rest.
+    return p && !p.includes("eleven");
+  };
+
+  const pick =
+    voices.find((v) => american(v) && cheap(v)) ??
+    voices.find((v) => cheap(v)) ??
+    voices.find(american) ??
+    voices[0];
+
+  console.log(
+    `- voice: picked ${pick.voice_id}` +
+      `${pick.voice_name ? ` (${pick.voice_name}` : ""}` +
+      `${pick.provider ? `, ${pick.provider}` : ""}` +
+      `${pick.accent ? `, ${pick.accent}` : ""}${pick.voice_name ? ")" : ""}` +
+      ` out of ${voices.length} available`,
+  );
+  console.log(`  to choose a different one: VOICE_ID=<id> npm run push:retell`);
+  return pick.voice_id;
 }
 
 async function main(): Promise<void> {
@@ -134,7 +202,17 @@ async function main(): Promise<void> {
 
   // ---------------------------------------------------------------- 1. flow
   const flowDoc = JSON.parse(readFileSync(FLOW_FILE, "utf8"));
-  const flow = substitute(flowDoc, { DEMO_HOST: host });
+  // A real transfer number is optional for a demo. Without one the transfer
+  // node fails and falls through to take a message, which is worth showing:
+  // the caller is never dropped.
+  const dispatch = process.env.DISPATCH_E164;
+  const flow = substitute(flowDoc, {
+    DEMO_HOST: host,
+    ...(dispatch ? { DISPATCH_E164: dispatch } : {}),
+  });
+  if (!dispatch) {
+    console.log("- transfer: no DISPATCH_E164 set, the transfer node will fall through to take a message");
+  }
   guardPlaceholders("demo-flow.json", flow.leftover);
 
   if (!dryRun) {
@@ -156,9 +234,11 @@ async function main(): Promise<void> {
 
   // --------------------------------------------------------------- 2. agent
   const agentDoc = JSON.parse(readFileSync(AGENT_FILE, "utf8"));
+  const voiceId = dryRun && !process.env.RETELL_API_KEY ? null : await resolveVoice();
   const agent = substitute(agentDoc, {
     DEMO_HOST: host,
     CONVERSATION_FLOW_ID: ids.conversation_flow_id ?? "<CONVERSATION_FLOW_ID>",
+    ...(voiceId ? { VOICE_ID: voiceId } : {}),
   });
   guardPlaceholders("demo-agent.json", agent.leftover);
 
