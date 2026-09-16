@@ -1,0 +1,116 @@
+# Render blueprint for the HVAC AI receptionist demo.
+#
+# Deploy: push this repo to GitHub, then in Render choose New > Blueprint and
+# point it at this file. Render reads it from the repo root of the service, so
+# set the service root directory to this folder if the repo holds more than the
+# demo.
+#
+# WARNING, READ BEFORE A DEMO: a free Render instance spins down after about
+# fifteen minutes with no traffic, and the next request takes roughly fifty
+# seconds to answer while the container boots. Retell's tool webhook times out
+# at 15000 ms, so a cold instance will fail the first tool call of the call and
+# the agent will fall back to the take a message path. ALWAYS warm the instance
+# before the demo: open the site, wait for it to paint, then make one test call.
+# See the "Before the demo" checklist in README.md. Upgrade to a paid instance
+# type if the demo cannot tolerate that risk.
+
+services:
+  - type: web
+    name: hvac-ai-receptionist-demo
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+
+    # GET /api/config returns the company branding, the service area and the
+    # integration modes. It touches no database, so it is cheap enough to poll
+    # and still proves the app booted.
+    healthCheckPath: /api/config
+
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+
+      # Leave DATABASE_URL unset to use the embedded PGlite database. PGlite
+      # writes to the container filesystem, which Render wipes on every deploy
+      # and on every spin down, so the demo resets itself. That is fine, and
+      # arguably good: every demo starts from the seeded week.
+      # Set it to a Neon or Render Postgres connection string if the board has
+      # to survive a restart.
+      - key: DATABASE_URL
+        sync: false
+
+      - key: PGLITE_DIR
+        value: /tmp/pgdata
+
+      # Secret. Retell dashboard > API Keys. Also the HMAC key the webhook
+      # signature is verified with, so it must be the same key that created the
+      # agent.
+      - key: RETELL_API_KEY
+        sync: false
+
+      # Public key for the browser call widget. Safe to ship to the client, but
+      # still set it per environment.
+      - key: NEXT_PUBLIC_RETELL_PUBLIC_KEY
+        sync: false
+
+      # Printed by retell/push-demo-config.ts after it creates the agent.
+      - key: NEXT_PUBLIC_RETELL_AGENT_ID
+        sync: false
+
+      # The number bound to the agent, shown on the demo page so the room can
+      # dial it from a mobile.
+      - key: NEXT_PUBLIC_DEMO_PHONE_NUMBER
+        sync: false
+
+      # Where the on call technician page is sent during the demo. Use your own
+      # mobile in E.164 so the text lands on a phone you can hold up.
+      - key: DEMO_TECHNICIAN_NUMBER
+        sync: false
+
+      # Must stay false for a real demo so the signature check is enforced and
+      # the pipeline panel shows a green verification step. Flip it to true only
+      # to exercise tests/demo-pipeline.http without a voice call.
+      - key: ALLOW_UNSIGNED_WEBHOOKS
+        value: "false"
+
+      # Jobber. All three secrets, all optional. With any of them missing the
+      # demo runs on the mock customer book and the seeded dispatch board, which
+      # is what you want until the Jobber developer account is set up.
+      - key: JOBBER_CLIENT_ID
+        sync: false
+      - key: JOBBER_CLIENT_SECRET
+        sync: false
+      - key: JOBBER_REFRESH_TOKEN
+        sync: false
+
+      # Set to mock to force the mock even when the three secrets above are
+      # present. Use it while rehearsing so a Jobber outage cannot spoil a live
+      # demo. Set it to live to force the real API.
+      - key: JOBBER_MODE
+        value: mock
+
+      - key: JOBBER_API_VERSION
+        value: "2026-05-12"
+
+      # Jobber rotates the refresh token on every exchange. Point this at a
+      # writable path so the new token survives the process. On Render only
+      # /tmp is reliably writable, and it is wiped on restart, so treat this as
+      # a demo convenience and not as production token storage.
+      - key: JOBBER_REFRESH_TOKEN_SINK
+        value: /tmp/jobber-refresh-token
+
+      # Twilio. With any of the three missing the SMS layer stays in preview
+      # mode and messages render on the phone mock up instead of being sent.
+      # Fill all three in once toll free verification has cleared.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false

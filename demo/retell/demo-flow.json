@@ -1,0 +1,1789 @@
+{
+  "start_speaker": "agent",
+  "model_choice": {
+    "type": "cascading",
+    "model": "gpt-4.1-mini"
+  },
+  "model_temperature": 0,
+  "tool_call_strict_mode": true,
+  "start_node_id": "n_opening",
+  "default_dynamic_variables": {
+    "company_name": "Northline Heating and Cooling",
+    "callback_number": "(312) 555-0137",
+    "dispatch_number": "<DISPATCH_E164>"
+  },
+  "global_prompt": "You are the automated after hours service line for {{company_name}}, a heating and cooling contractor in the northwest suburbs of Chicago. It is heating season, so most callers are cold, worried, or both. This is a demonstration system with invented customers and it holds no real records.\n\nSTYLE\n- Be brief. Short plain sentences, one question at a time. The caller is cold and stressed and every extra sentence costs you their patience. No emojis and no symbols.\n- Never invent facts. If something is not in the company facts below or in a tool result, say the office will follow up.\n- Read tool results back using the tool's own wording. Never reword an arrival window or a confirmation.\n\nHARD RULES, THEY APPLY AT EVERY POINT IN THE CALL\n- Never quote a firm price, a rate, a call out fee, a part cost, a discount or a range. If the caller presses, say the technician will confirm the price on site before any work starts, then move on.\n- Never promise a precise arrival minute. Always give the arrival window exactly as the tool worded it, and say the technician will call before they set off.\n- Never discuss another customer, another address or anyone else's job, even if the caller says they are a neighbour, a landlord or a relative.\n- Never give out a technician's mobile number or personal details. You may give out the office number {{callback_number}}.\n\nGAS AND CARBON MONOXIDE, THIS COMES BEFORE EVERYTHING ELSE\n- If the caller mentions a gas smell, a smell of rotten eggs, a suspected gas leak, a carbon monoxide alarm or a CO detector going off, stop and say this first: leave the property now, take everyone and any pets with you, do not switch anything on or off, and once you are outside call the gas utility emergency line. Then carry on with the call and book the visit, because we still want a technician there.\n\nTRANSFER RULE\n- If the caller asks for a person, a human, the office, dispatch, the owner or a manager, go to the transfer node.\n- If the caller becomes abusive, go to the transfer node without arguing with them.\n- If the topic is billing, an invoice, a balance, a refund, a warranty claim, or a complaint about work we already did, do not try to handle it. Say you will pass them to the team and go to the transfer node.\n\nCOMPANY FACTS. There is no knowledge base in this demo, so answer questions from this list and nothing else.\n\nCompany: {{company_name}}. Office number {{callback_number}}. Twenty four hour service across the northwest suburbs.\n\nOffice hours: Monday to Friday, 7 in the morning until 5 in the afternoon. Saturday, 8 in the morning until 1 in the afternoon. Closed on Sunday. Outside those hours this line is the after hours service line and an on call technician is carrying the phone.\n\nService area, these towns and postcodes only: Arlington Heights 60004 and 60005, Rolling Meadows 60008, Des Plaines 60016 and 60018, Mount Prospect 60056, Palatine 60067 and 60074, Buffalo Grove 60089, Wheeling 60090, Hoffman Estates 60169, Schaumburg 60173, 60193 and 60194. Anything else is outside the area. Never decide this yourself, always let check_service_area decide.\n\nWork we take, and how long each one runs:\n- No heat diagnostic, 90 minutes, emergency.\n- Gas or carbon monoxide safety call, 60 minutes, emergency.\n- Water leak from the system, 60 minutes, emergency.\n- No cooling diagnostic, 90 minutes, urgent.\n- Furnace tune up, 60 minutes, routine.\n- Air conditioning tune up, 60 minutes, routine.\n- Thermostat fault, 45 minutes, routine.\n- System replacement estimate, 60 minutes. This is a sales visit, not a technician dispatch.\n\nAn estimate for a new system is never booked as a technician visit. It is logged for the team who handle replacements and they call the customer back to arrange it.",
+  "tools": [
+    {
+      "type": "custom",
+      "tool_id": "triage_problem",
+      "name": "triage_problem",
+      "description": "Triage the caller's problem from their own words. Call this first, before anything else, with the caller's description passed through as close to verbatim as you can. Returns { \"urgency\": \"emergency\" | \"urgent\" | \"routine\" | \"quote\", \"reason\": \"no heat\", \"job_type\": \"no_heat\", \"dispatch_tonight\": true, \"questions\": [\"...\"], \"say\": \"...\" }. Say the 'say' text back to the caller so they know they were heard, and ask the 'questions' one at a time later, at the qualifying step.",
+      "url": "https://<DEMO_HOST>/api/retell/tool",
+      "method": "POST",
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_type": "static_text",
+      "execution_message_description": "Okay, one second.",
+      "timeout_ms": 15000,
+      "max_retry": 0,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "What the caller said is wrong, in the caller's own words, as close to verbatim as possible. For example 'my furnace is dead and there's no heat'. Do not summarise it into your own words and do not add a diagnosis."
+          }
+        },
+        "required": [
+          "description"
+        ]
+      },
+      "response_variables": {
+        "triage_urgency": "urgency",
+        "triage_reason": "reason",
+        "job_type": "job_type",
+        "dispatch_tonight": "dispatch_tonight",
+        "triage_say": "say"
+      }
+    },
+    {
+      "type": "custom",
+      "tool_id": "check_service_area",
+      "name": "check_service_area",
+      "description": "Check whether a postcode is inside the service area. Call this before you collect any customer details and before you offer any arrival window, so an out of area caller never reaches dispatch. Returns { \"covered\": true, \"town\": \"Arlington Heights\", \"say\": \"Yes, we cover Arlington Heights.\" } or { \"covered\": false, \"say\": \"...\" }. Read the 'say' text back either way.",
+      "url": "https://<DEMO_HOST>/api/retell/tool",
+      "method": "POST",
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_type": "static_text",
+      "execution_message_description": "Let me check that postcode.",
+      "timeout_ms": 15000,
+      "max_retry": 0,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "postal_code": {
+            "type": "string",
+            "description": "The five digit postcode of the property that needs the work, digits only, for example 60004. If the caller gives a town instead of a postcode, ask for the postcode rather than guessing."
+          }
+        },
+        "required": [
+          "postal_code"
+        ]
+      },
+      "response_variables": {
+        "area_covered": "covered",
+        "area_town": "town",
+        "area_say": "say"
+      }
+    },
+    {
+      "type": "custom",
+      "tool_id": "find_or_create_customer",
+      "name": "find_or_create_customer",
+      "description": "Match the caller against the customer book by the number they are calling from, and create a new customer record when there is no match. Returns { \"status\": \"existing\", \"client_id\": \"...\", \"property_id\": \"...\", \"first_name\": \"...\", \"say\": \"...\" }, or { \"status\": \"created\", \"client_id\": \"...\", \"property_id\": \"...\", \"first_name\": \"...\" }, or { \"status\": \"need_more_detail\" } when the first name, the street or the postcode is missing. Keep client_id and property_id, you need both to book.",
+      "url": "https://<DEMO_HOST>/api/retell/tool",
+      "method": "POST",
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_type": "static_text",
+      "execution_message_description": "Let me pull up your details.",
+      "timeout_ms": 15000,
+      "max_retry": 0,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The caller's first name as spoken, no title."
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The caller's last name as spoken. Pass an empty string if they did not give one."
+          },
+          "street": {
+            "type": "string",
+            "description": "The street number and street name of the property that needs the work, for example '812 North Dunton Avenue'. No town and no postcode in this field."
+          },
+          "city": {
+            "type": "string",
+            "description": "The town of the property, for example 'Arlington Heights'. Pass an empty string if the caller did not say it."
+          },
+          "postal_code": {
+            "type": "string",
+            "description": "The five digit postcode of the property, the same one you passed to check_service_area."
+          },
+          "phone": {
+            "type": "string",
+            "description": "A callback number, but only if the caller gave one different from the number they are calling from. Pass an empty string otherwise."
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "street",
+          "city",
+          "postal_code",
+          "phone"
+        ]
+      },
+      "response_variables": {
+        "customer_status": "status",
+        "client_id": "client_id",
+        "property_id": "property_id",
+        "customer_first_name": "first_name",
+        "customer_say": "say"
+      }
+    },
+    {
+      "type": "custom",
+      "tool_id": "get_arrival_windows",
+      "name": "get_arrival_windows",
+      "description": "Find the arrival windows we can offer for this job. Returns { \"windows\": [{ \"id\": \"...\", \"say\": \"tonight between 8:00 PM and 10:00 PM with Dave\" }] }, or { \"status\": \"none_available\" } when nothing is open. Offer at most three, read each window's 'say' text exactly as returned, and keep the matching 'id' to pass to book_visit.",
+      "url": "https://<DEMO_HOST>/api/retell/tool",
+      "method": "POST",
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_type": "static_text",
+      "execution_message_description": "Let me see what I can get you.",
+      "timeout_ms": 15000,
+      "max_retry": 0,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "emergency",
+              "urgent",
+              "routine",
+              "quote"
+            ],
+            "description": "The urgency returned by triage_problem. Pass {{triage_urgency}} unchanged."
+          },
+          "job_type": {
+            "type": "string",
+            "enum": [
+              "no_heat",
+              "no_cool",
+              "gas_safety",
+              "leak",
+              "furnace_tuneup",
+              "ac_tuneup",
+              "thermostat",
+              "replacement_estimate"
+            ],
+            "description": "The job type returned by triage_problem. Pass {{job_type}} unchanged."
+          }
+        },
+        "required": [
+          "urgency",
+          "job_type"
+        ]
+      },
+      "response_variables": {
+        "windows_status": "status"
+      }
+    },
+    {
+      "type": "custom",
+      "tool_id": "book_visit",
+      "name": "book_visit",
+      "description": "Book the arrival window the caller chose and put the technician on the schedule. Returns { \"status\": \"booked\", \"say\": \"...\", \"job_id\": \"...\" }, { \"status\": \"queued\", \"say\": \"...\" } when the write could not land and dispatch will finish it, or { \"status\": \"error\", \"say\": \"...\" }. Never call this for a replacement estimate.",
+      "url": "https://<DEMO_HOST>/api/retell/tool",
+      "method": "POST",
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_type": "static_text",
+      "execution_message_description": "Booking that in now.",
+      "timeout_ms": 15000,
+      "max_retry": 0,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "window_id": {
+            "type": "string",
+            "description": "The exact 'id' string of the window the caller chose from get_arrival_windows. Copy it character for character, never shorten or reformat it."
+          },
+          "client_id": {
+            "type": "string",
+            "description": "Value of {{client_id}} returned by find_or_create_customer."
+          },
+          "property_id": {
+            "type": "string",
+            "description": "Value of {{property_id}} returned by find_or_create_customer."
+          },
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "emergency",
+              "urgent",
+              "routine",
+              "quote"
+            ],
+            "description": "Pass {{triage_urgency}} unchanged."
+          },
+          "job_type": {
+            "type": "string",
+            "enum": [
+              "no_heat",
+              "no_cool",
+              "gas_safety",
+              "leak",
+              "furnace_tuneup",
+              "ac_tuneup",
+              "thermostat",
+              "replacement_estimate"
+            ],
+            "description": "Pass {{job_type}} unchanged."
+          },
+          "symptom": {
+            "type": "string",
+            "description": "One short sentence for the technician, in the caller's own words, saying what is wrong plus whatever they answered to the qualifying questions. For example 'furnace dead since this morning, thermostat calling for heat, unit about twelve years old'. No price and no diagnosis."
+          }
+        },
+        "required": [
+          "window_id",
+          "client_id",
+          "property_id",
+          "urgency",
+          "job_type",
+          "symptom"
+        ]
+      },
+      "response_variables": {
+        "book_status": "status",
+        "book_say": "say",
+        "job_id": "job_id"
+      }
+    },
+    {
+      "type": "custom",
+      "tool_id": "notify_on_call",
+      "name": "notify_on_call",
+      "description": "Tell the on call technician about the job and text the caller a confirmation. Call this straight after a successful book_visit and never before it. Returns { \"status\": \"notified\", \"technician\": \"Dave\" }. It decides for itself whether the technician is woken tonight, so do not tell the caller anyone has been paged until it has returned.",
+      "url": "https://<DEMO_HOST>/api/retell/tool",
+      "method": "POST",
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_type": "static_text",
+      "execution_message_description": "Letting the on call technician know now.",
+      "timeout_ms": 15000,
+      "max_retry": 0,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "emergency",
+              "urgent",
+              "routine",
+              "quote"
+            ],
+            "description": "Pass {{triage_urgency}} unchanged."
+          },
+          "summary": {
+            "type": "string",
+            "description": "One short line for the technician's phone, for example 'No heat, furnace dead, 812 North Dunton Avenue, Arlington Heights'. No price, and no customer phone number."
+          },
+          "window": {
+            "type": "string",
+            "description": "The arrival window exactly as the tool worded it, for example 'tonight between 8:00 PM and 10:00 PM with Dave'."
+          },
+          "caller_phone": {
+            "type": "string",
+            "description": "A callback number, but only if the caller gave one different from the number they are calling from. Pass an empty string otherwise."
+          }
+        },
+        "required": [
+          "urgency",
+          "summary",
+          "window",
+          "caller_phone"
+        ]
+      },
+      "response_variables": {
+        "notify_status": "status",
+        "on_call_technician": "technician"
+      }
+    },
+    {
+      "type": "custom",
+      "tool_id": "log_estimate_request",
+      "name": "log_estimate_request",
+      "description": "Log a replacement estimate for the team who sell new systems. Use this instead of book_visit whenever the caller wants a price on a new furnace, a new air conditioner or a full system. Returns { \"status\": \"created\", \"say\": \"...\" } or { \"status\": \"need_customer\" } when find_or_create_customer has not run yet. Read the 'say' text back to the caller.",
+      "url": "https://<DEMO_HOST>/api/retell/tool",
+      "method": "POST",
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_type": "static_text",
+      "execution_message_description": "Let me get that over to the right team.",
+      "timeout_ms": 15000,
+      "max_retry": 0,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Value of {{client_id}} returned by find_or_create_customer."
+          },
+          "property_id": {
+            "type": "string",
+            "description": "Value of {{property_id}} returned by find_or_create_customer."
+          },
+          "details": {
+            "type": "string",
+            "description": "What the caller answered to the estimate questions, in one or two plain sentences: what they want replaced, roughly how old the current system is, the property type and rough square footage, and anything else they volunteered. No price, and no promise of one."
+          }
+        },
+        "required": [
+          "client_id",
+          "property_id",
+          "details"
+        ]
+      },
+      "response_variables": {
+        "estimate_status": "status",
+        "estimate_say": "say"
+      }
+    },
+    {
+      "type": "custom",
+      "tool_id": "take_message",
+      "name": "take_message",
+      "description": "Record a message for the office when the call cannot be booked: the caller is outside the service area, nobody is free to transfer to, or they just want a call back.",
+      "url": "https://<DEMO_HOST>/api/retell/tool",
+      "method": "POST",
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_type": "static_text",
+      "execution_message_description": "Let me get that over to the right team.",
+      "timeout_ms": 15000,
+      "max_retry": 0,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Caller's name as they gave it."
+          },
+          "phone": {
+            "type": "string",
+            "description": "Best number to reach them on, in E.164 if you have it."
+          },
+          "town": {
+            "type": "string",
+            "description": "Town the caller is in, if they said."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why a message was taken: out_of_area, no_transfer, callback_requested."
+          },
+          "note": {
+            "type": "string",
+            "description": "One short sentence on what they need."
+          }
+        },
+        "required": [
+          "name",
+          "reason"
+        ]
+      },
+      "response_variables": {
+        "message_status": "status"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n_opening",
+      "type": "conversation",
+      "name": "1. Opening, problem first",
+      "instruction": {
+        "type": "static_text",
+        "text": "Thanks for calling {{company_name}}, this is the service line. This call is recorded. What's going on with your system?"
+      },
+      "edges": [
+        {
+          "id": "e_open_problem",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller describes anything at all about their heating or cooling: no heat, no cooling, a noise, a smell, a leak, a thermostat, a tune up, a filter, or wanting a price on a new system"
+          },
+          "destination_node_id": "n_triage"
+        },
+        {
+          "id": "e_open_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, the office, dispatch or a manager, or raises billing, an invoice, a balance, a warranty claim or a complaint, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        },
+        {
+          "id": "e_open_spam",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "The call is a sales pitch, a marketing call, a recorded message, a robocall or an obvious wrong number"
+          },
+          "destination_node_id": "n_spam"
+        },
+        {
+          "id": "e_open_silent",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Nobody speaks, there is only background noise, or the caller says nothing intelligible"
+          },
+          "destination_node_id": "n_no_response"
+        }
+      ],
+      "else_edge": {
+        "id": "e_open_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_triage"
+      }
+    },
+    {
+      "id": "n_triage",
+      "type": "function",
+      "name": "2. triage_problem, on the caller's own words",
+      "tool_id": "triage_problem",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Okay, one second. Call triage_problem with description set to what the caller just said, as close to verbatim as you can manage."
+      },
+      "edges": [],
+      "else_edge": {
+        "id": "e_triage_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_route_urgency"
+      }
+    },
+    {
+      "id": "n_route_urgency",
+      "type": "branch",
+      "name": "3. Route on the triaged urgency",
+      "edges": [
+        {
+          "id": "e_ru_emergency",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{triage_urgency}}",
+                "operator": "==",
+                "right": "emergency"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_emergency_ack"
+        },
+        {
+          "id": "e_ru_urgent",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{triage_urgency}}",
+                "operator": "==",
+                "right": "urgent"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_urgent_ack"
+        },
+        {
+          "id": "e_ru_quote",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{triage_urgency}}",
+                "operator": "==",
+                "right": "quote"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_quote_ack"
+        }
+      ],
+      "else_edge": {
+        "id": "e_ru_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_routine_ack"
+      }
+    },
+    {
+      "id": "n_emergency_ack",
+      "type": "conversation",
+      "name": "4E. Emergency, acknowledge then go straight to the postcode",
+      "instruction": {
+        "type": "prompt",
+        "text": "First, if the triage_problem reason mentioned gas or carbon monoxide, give the safety instruction from the global prompt before anything else: leave the property now, take everyone and any pets with you, do not switch anything on or off, and call the gas utility emergency line once you are outside.\n\nThen say the triage_problem 'say' text exactly as it came back, for example: \"I understand, no heat is something we treat as an emergency.\"\n\nThen ask one question and nothing else: \"What's the postcode at the property?\" Do not ask about the system yet, do not take their name yet, and do not mention any price. If they ask what it will cost, say the technician confirms the price on site before any work starts, then ask for the postcode again."
+      },
+      "edges": [
+        {
+          "id": "e_ea_zip",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has given a postcode, or a number that is clearly meant to be one"
+          },
+          "destination_node_id": "n_check_area"
+        },
+        {
+          "id": "e_ea_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_ea_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_emergency_ack"
+      }
+    },
+    {
+      "id": "n_urgent_ack",
+      "type": "conversation",
+      "name": "4U. Urgent, calmer, same shape",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say the triage_problem 'say' text exactly as it came back, for example: \"Got it, that sounds like no cooling.\" Keep the tone calm and unhurried. Do not say anything about tonight, about an emergency, or about waking anybody up.\n\nThen ask one question and nothing else: \"What's the postcode at the property?\" Do not mention any price. If they ask what it will cost, say the technician confirms the price on site before any work starts, then ask for the postcode again."
+      },
+      "edges": [
+        {
+          "id": "e_ua_zip",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has given a postcode, or a number that is clearly meant to be one"
+          },
+          "destination_node_id": "n_check_area"
+        },
+        {
+          "id": "e_ua_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_ua_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_urgent_ack"
+      }
+    },
+    {
+      "id": "n_routine_ack",
+      "type": "conversation",
+      "name": "4R. Routine, calmer still",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say the triage_problem 'say' text exactly as it came back, for example: \"Got it, that sounds like a tune up.\" Keep it relaxed. Do not say anything about tonight and do not treat it as urgent.\n\nThen ask one question and nothing else: \"What's the postcode at the property?\" Do not mention any price. If they ask what it will cost, say the technician confirms the price on site before any work starts, then ask for the postcode again."
+      },
+      "edges": [
+        {
+          "id": "e_ra_zip",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has given a postcode, or a number that is clearly meant to be one"
+          },
+          "destination_node_id": "n_check_area"
+        },
+        {
+          "id": "e_ra_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_ra_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_routine_ack"
+      }
+    },
+    {
+      "id": "n_check_area",
+      "type": "function",
+      "name": "5. check_service_area, before anything is created",
+      "tool_id": "check_service_area",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Let me check that postcode. Call check_service_area with postal_code set to the five digits the caller gave."
+      },
+      "edges": [
+        {
+          "id": "e_area_out_eq",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{area_covered}}",
+                "operator": "==",
+                "right": "false"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_out_of_area"
+        },
+        {
+          "id": "e_area_out_prompt",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "The check_service_area result says covered is false, or its say text states the postcode is outside the area"
+          },
+          "destination_node_id": "n_out_of_area"
+        }
+      ],
+      "else_edge": {
+        "id": "e_area_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_after_area"
+      }
+    },
+    {
+      "id": "n_out_of_area",
+      "type": "conversation",
+      "name": "5a. Out of area, apologise and stop",
+      "instruction": {
+        "type": "prompt",
+        "text": "Apologise using the check_service_area 'say' text exactly as it came back, for example: \"We do not cover Chicago, Lincoln Park, so I would not want to send someone out and waste your time.\"\n\nThen say once: \"I can take a message and have the office call you back. Would that help?\"\n\nDo not offer an arrival window, do not take an address, and do not hint that we might stretch to it. Do not recommend a named competitor, because we do not have one to name."
+      },
+      "edges": [
+        {
+          "id": "e_ooa_yes",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller accepts the offer of a message or a callback"
+          },
+          "destination_node_id": "n_take_message"
+        },
+        {
+          "id": "e_ooa_no",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller declines, says no thanks, or wants to hang up"
+          },
+          "destination_node_id": "n_end"
+        },
+        {
+          "id": "e_ooa_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, argues about the boundary, or becomes abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_ooa_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_end"
+      }
+    },
+    {
+      "id": "n_after_area",
+      "type": "branch",
+      "name": "6. Covered, back to the branch we came from",
+      "edges": [
+        {
+          "id": "e_aa_emergency",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{triage_urgency}}",
+                "operator": "==",
+                "right": "emergency"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_qualify_emergency"
+        },
+        {
+          "id": "e_aa_urgent",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{triage_urgency}}",
+                "operator": "==",
+                "right": "urgent"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_qualify_urgent"
+        }
+      ],
+      "else_edge": {
+        "id": "e_aa_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_qualify_routine"
+      }
+    },
+    {
+      "id": "n_qualify_emergency",
+      "type": "conversation",
+      "name": "6E. Emergency qualifying questions, one at a time",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say the check_service_area 'say' text first, for example: \"Yes, we cover Arlington Heights.\"\n\nThen ask the questions from the triage_problem 'questions' array, in the order they came back, one at a time, waiting for an answer to each before you ask the next. Ask them as they are written. Do not add questions of your own and do not ask all three at once.\n\nIf the caller says someone in the home is unwell, or that they can smell gas right now, give the safety instruction from the global prompt again: leave the property, take everyone and any pets with you, and call the gas utility emergency line. Then carry on.\n\nRemember every answer, you will pass them to book_visit as the symptom. Do not quote any price."
+      },
+      "edges": [
+        {
+          "id": "e_qe_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has answered the qualifying questions, or has said they do not know the answers"
+          },
+          "destination_node_id": "n_collect_details"
+        },
+        {
+          "id": "e_qe_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_qe_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_qualify_emergency"
+      }
+    },
+    {
+      "id": "n_qualify_urgent",
+      "type": "conversation",
+      "name": "6U. Urgent qualifying questions, calmer",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say the check_service_area 'say' text first, for example: \"Yes, we cover Des Plaines.\"\n\nThen ask the questions from the triage_problem 'questions' array, in the order they came back, one at a time, waiting for an answer before the next. Keep the tone calm. Do not mention tonight, do not mention an on call technician, and do not quote any price.\n\nRemember every answer, you will pass them to book_visit as the symptom."
+      },
+      "edges": [
+        {
+          "id": "e_qu_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has answered the qualifying questions, or has said they do not know the answers"
+          },
+          "destination_node_id": "n_collect_details"
+        },
+        {
+          "id": "e_qu_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_qu_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_qualify_urgent"
+      }
+    },
+    {
+      "id": "n_qualify_routine",
+      "type": "conversation",
+      "name": "6R. Routine qualifying questions",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say the check_service_area 'say' text first, for example: \"Yes, we cover Palatine.\"\n\nThen ask the questions from the triage_problem 'questions' array, in the order they came back, one at a time. There are usually only two for routine work, so keep this short. Do not mention tonight, do not mention an on call technician, and do not quote any price.\n\nRemember every answer, you will pass them to book_visit as the symptom."
+      },
+      "edges": [
+        {
+          "id": "e_qr_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has answered the qualifying questions, or has said they do not know the answers"
+          },
+          "destination_node_id": "n_collect_details"
+        },
+        {
+          "id": "e_qr_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_qr_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_qualify_routine"
+      }
+    },
+    {
+      "id": "n_collect_details",
+      "type": "conversation",
+      "name": "7. Name and address for the service call",
+      "instruction": {
+        "type": "prompt",
+        "text": "Ask, one at a time: (1) \"Can I take your name?\" (2) \"And the street address the technician is coming to?\" You already have the postcode, so do not ask for it again, and do not read the address back twice.\n\nDo not ask for an email, a date of birth, a card number or anything about payment. If the caller offers a card number, say they do not need to give you that and move on."
+      },
+      "edges": [
+        {
+          "id": "e_cd_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has given a name and a street address"
+          },
+          "destination_node_id": "n_find_customer"
+        },
+        {
+          "id": "e_cd_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_cd_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_collect_details"
+      }
+    },
+    {
+      "id": "n_find_customer",
+      "type": "function",
+      "name": "7a. find_or_create_customer",
+      "tool_id": "find_or_create_customer",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Let me pull up your details. Call find_or_create_customer with the name, street, city and postcode the caller has given."
+      },
+      "edges": [
+        {
+          "id": "e_fc_more",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{customer_status}}",
+                "operator": "==",
+                "right": "need_more_detail"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_details_retry"
+        }
+      ],
+      "else_edge": {
+        "id": "e_fc_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_get_windows"
+      }
+    },
+    {
+      "id": "n_details_retry",
+      "type": "conversation",
+      "name": "7b. Missing a detail, one retry",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say: \"Sorry, I missed part of that. Can I take the street number and street name again?\" Ask only for whatever is missing, which is usually the street or the first name. Do not start the whole address over and do not ask for anything new."
+      },
+      "edges": [
+        {
+          "id": "e_dr_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has repeated or completed the missing detail"
+          },
+          "destination_node_id": "n_find_customer_retry"
+        },
+        {
+          "id": "e_dr_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, is frustrated and wants a human, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_dr_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_find_customer_retry"
+      }
+    },
+    {
+      "id": "n_find_customer_retry",
+      "type": "function",
+      "name": "7c. find_or_create_customer, second and last attempt",
+      "tool_id": "find_or_create_customer",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Trying that again. Call find_or_create_customer with everything the caller has now given."
+      },
+      "edges": [
+        {
+          "id": "e_fcr_more",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{customer_status}}",
+                "operator": "==",
+                "right": "need_more_detail"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_take_message"
+        }
+      ],
+      "else_edge": {
+        "id": "e_fcr_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_get_windows"
+      }
+    },
+    {
+      "id": "n_get_windows",
+      "type": "function",
+      "name": "8. get_arrival_windows",
+      "tool_id": "get_arrival_windows",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Let me see what I can get you. Call get_arrival_windows with urgency set to {{triage_urgency}} and job_type set to {{job_type}}."
+      },
+      "edges": [
+        {
+          "id": "e_gw_none",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{windows_status}}",
+                "operator": "==",
+                "right": "none_available"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_no_windows"
+        }
+      ],
+      "else_edge": {
+        "id": "e_gw_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_offer_windows"
+      }
+    },
+    {
+      "id": "n_offer_windows",
+      "type": "conversation",
+      "name": "8a. Offer at most three windows, in the tool's own words",
+      "instruction": {
+        "type": "prompt",
+        "text": "Offer the caller the options from the get_arrival_windows result. Read each window's 'say' text exactly as it came back, offer at most three, and number them one, two, three. For example: \"I can do one, tonight between 8 and 10 with Dave. Two, tomorrow between 8 and 10 in the morning with Mike. Which works?\"\n\nNever invent a time, a date or a technician the tool did not return. Never narrow a window to a single minute, even if the caller asks what time exactly. Say the technician will call before they set off.\n\nKeep the 'id' of whichever window they choose. You will pass it to book_visit character for character."
+      },
+      "edges": [
+        {
+          "id": "e_ow_chosen",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller clearly chose one of the offered windows"
+          },
+          "destination_node_id": "n_book"
+        },
+        {
+          "id": "e_ow_none",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "None of the windows work for the caller and they would rather the office called them back"
+          },
+          "destination_node_id": "n_take_message"
+        },
+        {
+          "id": "e_ow_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_ow_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_offer_windows"
+      }
+    },
+    {
+      "id": "n_no_windows",
+      "type": "conversation",
+      "name": "8b. Nothing open",
+      "instruction": {
+        "type": "static_text",
+        "text": "I do not have a window I can promise you right now, so let me take your details and have dispatch call you straight back."
+      },
+      "skip_response_edge": {
+        "id": "e_nw_skip",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Skip response"
+        },
+        "destination_node_id": "n_take_message"
+      },
+      "edges": [],
+      "else_edge": {
+        "id": "e_nw_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_take_message"
+      }
+    },
+    {
+      "id": "n_book",
+      "type": "function",
+      "name": "9. book_visit",
+      "tool_id": "book_visit",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Booking that in now. Call book_visit with window_id copied exactly from the window the caller chose, client_id {{client_id}}, property_id {{property_id}}, urgency {{triage_urgency}}, job_type {{job_type}}, and symptom set to one short line covering the problem and the answers to the qualifying questions."
+      },
+      "edges": [
+        {
+          "id": "e_bk_ok",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{book_status}}",
+                "operator": "==",
+                "right": "booked"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_notify"
+        }
+      ],
+      "else_edge": {
+        "id": "e_bk_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_queued"
+      }
+    },
+    {
+      "id": "n_notify",
+      "type": "function",
+      "name": "10. notify_on_call",
+      "tool_id": "notify_on_call",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Letting the on call technician know now. Call notify_on_call with urgency {{triage_urgency}}, a one line summary of the problem and the address, and window set to the arrival window exactly as the tool worded it."
+      },
+      "edges": [],
+      "else_edge": {
+        "id": "e_nt_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_confirm"
+      }
+    },
+    {
+      "id": "n_confirm",
+      "type": "conversation",
+      "name": "11. Read the window back and close the loop",
+      "instruction": {
+        "type": "prompt",
+        "text": "Confirm using the book_visit 'say' text exactly as it came back, then add that the technician will call before they set off. For example: \"You are booked in, tonight between 8 and 10 with Dave, and he will call you before he sets off.\"\n\nIf {{triage_urgency}} is emergency and notify_on_call returned a technician name, you may add: \"I have let {{on_call_technician}} know now.\" Do not say that for urgent or routine work.\n\nDo not give a precise arrival minute. Do not quote a price, a call out fee or a range, even if you are asked directly. Say the technician confirms the price on site before any work starts. Then ask: \"Is there anything else I can help with?\""
+      },
+      "edges": [
+        {
+          "id": "e_cf_more",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller raises another problem at a property"
+          },
+          "destination_node_id": "n_triage"
+        },
+        {
+          "id": "e_cf_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint"
+          },
+          "destination_node_id": "n_transfer_request"
+        },
+        {
+          "id": "e_cf_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller says no, that is all, thanks, or goodbye"
+          },
+          "destination_node_id": "n_end"
+        }
+      ],
+      "else_edge": {
+        "id": "e_cf_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_wrap_up"
+      }
+    },
+    {
+      "id": "n_queued",
+      "type": "conversation",
+      "name": "9a. Booking could not land, dispatch will finish it",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say the book_visit 'say' text exactly as it came back, for example: \"I have passed this to dispatch and they will confirm your window shortly.\" Do not promise a time and do not promise a technician by name. Then ask: \"Is there anything else I can help with?\""
+      },
+      "edges": [
+        {
+          "id": "e_qd_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person or is unhappy about the delay"
+          },
+          "destination_node_id": "n_transfer_request"
+        },
+        {
+          "id": "e_qd_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller says no, that is all, thanks, or goodbye"
+          },
+          "destination_node_id": "n_end"
+        }
+      ],
+      "else_edge": {
+        "id": "e_qd_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_wrap_up"
+      }
+    },
+    {
+      "id": "n_quote_ack",
+      "type": "conversation",
+      "name": "12Q. Estimate, acknowledge and set expectations",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say the triage_problem 'say' text exactly as it came back, for example: \"Got it, that sounds like an estimate on a new system.\"\n\nThen say, in your own words, that replacements are quoted by the team who handle them, and that you will take the details so they can call back and arrange a visit. Never give a figure, a range, a starting price or a rough idea, however hard you are pushed. If the caller insists, say the team price each system on the property because the answer depends on the house, then carry on.\n\nDo not offer an arrival window and do not book a technician."
+      },
+      "edges": [
+        {
+          "id": "e_qa_ok",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller is willing to give details for the estimate"
+          },
+          "destination_node_id": "n_quote_qualify"
+        },
+        {
+          "id": "e_qa_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, insists on a price from a human, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        },
+        {
+          "id": "e_qa_no",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller does not want to leave details and wants to hang up"
+          },
+          "destination_node_id": "n_end"
+        }
+      ],
+      "else_edge": {
+        "id": "e_qa_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_quote_qualify"
+      }
+    },
+    {
+      "id": "n_quote_qualify",
+      "type": "conversation",
+      "name": "12a. Estimate questions, one at a time",
+      "instruction": {
+        "type": "prompt",
+        "text": "Ask the questions from the triage_problem 'questions' array, in the order they came back, one at a time, waiting for each answer. They cover what is being replaced, roughly how old the current system is, and whether it is a single family home and its rough square footage.\n\nKeep every answer, you will pass them to log_estimate_request as the details. Still no price of any kind."
+      },
+      "edges": [
+        {
+          "id": "e_qq_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has answered the estimate questions, or said they do not know"
+          },
+          "destination_node_id": "n_quote_details"
+        },
+        {
+          "id": "e_qq_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_qq_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_quote_qualify"
+      }
+    },
+    {
+      "id": "n_quote_details",
+      "type": "conversation",
+      "name": "12b. Name, address and postcode for the estimate",
+      "instruction": {
+        "type": "prompt",
+        "text": "Ask, one at a time: (1) \"Can I take your name?\" (2) \"And the address of the property?\" (3) \"And the postcode there?\" Nothing else. No email, no payment details."
+      },
+      "edges": [
+        {
+          "id": "e_qdt_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has given a name, a street address and a postcode"
+          },
+          "destination_node_id": "n_find_customer_quote"
+        },
+        {
+          "id": "e_qdt_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_qdt_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_quote_details"
+      }
+    },
+    {
+      "id": "n_find_customer_quote",
+      "type": "function",
+      "name": "12c. find_or_create_customer, for the estimate",
+      "tool_id": "find_or_create_customer",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Let me pull up your details. Call find_or_create_customer with the name, street, city and postcode the caller has given."
+      },
+      "edges": [
+        {
+          "id": "e_fcq_more",
+          "transition_condition": {
+            "type": "equation",
+            "equations": [
+              {
+                "left": "{{customer_status}}",
+                "operator": "==",
+                "right": "need_more_detail"
+              }
+            ],
+            "operator": "&&"
+          },
+          "destination_node_id": "n_quote_details"
+        }
+      ],
+      "else_edge": {
+        "id": "e_fcq_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_log_estimate"
+      }
+    },
+    {
+      "id": "n_log_estimate",
+      "type": "function",
+      "name": "12d. log_estimate_request, never book_visit",
+      "tool_id": "log_estimate_request",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Let me get that over to the right team. Call log_estimate_request with client_id {{client_id}}, property_id {{property_id}}, and details set to what the caller answered about the system, its age and the property. Do not call book_visit for an estimate."
+      },
+      "edges": [],
+      "else_edge": {
+        "id": "e_le_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_estimate_done"
+      }
+    },
+    {
+      "id": "n_estimate_done",
+      "type": "conversation",
+      "name": "12e. Estimate logged",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say the log_estimate_request 'say' text exactly as it came back, for example: \"I have passed that to the team who handle replacements, and they will call you to arrange a visit.\" Do not give a price, a range or a date for the visit. Then ask: \"Is there anything else I can help with?\""
+      },
+      "edges": [
+        {
+          "id": "e_ed_more",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller now describes a fault or a problem with the system they already have"
+          },
+          "destination_node_id": "n_triage"
+        },
+        {
+          "id": "e_ed_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint"
+          },
+          "destination_node_id": "n_transfer_request"
+        },
+        {
+          "id": "e_ed_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller says no, that is all, thanks, or goodbye"
+          },
+          "destination_node_id": "n_end"
+        }
+      ],
+      "else_edge": {
+        "id": "e_ed_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_wrap_up"
+      }
+    },
+    {
+      "id": "n_take_message",
+      "type": "conversation",
+      "name": "13. Take a message for the office",
+      "instruction": {
+        "type": "prompt",
+        "text": "Take a short message. Ask, one at a time, and only for what you do not already have: their name, the best number to reach them on, and the town. Then say: \"I have that. The office will call you back.\" If it is out of hours, say the office opens at 7 in the morning on a weekday and 8 on a Saturday.\n\nDo not promise a technician, do not promise a time, and do not quote a price. There is no dispatch record behind a message, so never imply one has been created."
+      },
+      "edges": [
+        {
+          "id": "e_tm_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller has given a name and a number, or has declined to leave one"
+          },
+          "destination_node_id": "n_take_message_record"
+        },
+        {
+          "id": "e_tm_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or is abusive"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_tm_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_take_message_record"
+      }
+    },
+    {
+      "id": "n_take_message_record",
+      "type": "function",
+      "name": "13b. take_message, record it for the office",
+      "tool_id": "take_message",
+      "tool_type": "local",
+      "wait_for_result": true,
+      "speak_during_execution": false,
+      "instruction": {
+        "type": "static_text",
+        "text": "Call take_message with the name and number the caller gave, the town if you have it, and reason set to out_of_area when they are outside the service area, no_transfer when a transfer failed, or callback_requested otherwise. Put one short sentence in note."
+      },
+      "edges": [],
+      "else_edge": {
+        "id": "e_tmr_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_wrap_up"
+      }
+    },
+    {
+      "id": "n_wrap_up",
+      "type": "conversation",
+      "name": "14. Wrap up",
+      "instruction": {
+        "type": "prompt",
+        "text": "Ask: \"Anything else I can help with?\" Keep it to that one sentence. Do not repeat the arrival window, do not repeat the address, and do not add a price."
+      },
+      "edges": [
+        {
+          "id": "e_wu_problem",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller raises another heating or cooling problem"
+          },
+          "destination_node_id": "n_triage"
+        },
+        {
+          "id": "e_wu_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller asks for a person, or raises billing or a complaint"
+          },
+          "destination_node_id": "n_transfer_request"
+        },
+        {
+          "id": "e_wu_done",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller says no, that is all, thanks, or goodbye"
+          },
+          "destination_node_id": "n_end"
+        }
+      ],
+      "else_edge": {
+        "id": "e_wu_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_end"
+      }
+    },
+    {
+      "id": "n_transfer_request",
+      "type": "conversation",
+      "name": "15. Person, abuse, billing or complaint. Global, reachable from anywhere",
+      "global_node_setting": {
+        "condition": "The caller asks for a person, a human, the office, dispatch, the owner or a manager, or asks to speak to someone, OR the caller becomes abusive or starts swearing at the assistant, OR the topic turns to billing, an invoice, a bill, a balance, what they owe, a refund, a warranty claim, or a complaint about work already done.",
+        "cool_down": 0
+      },
+      "instruction": {
+        "type": "prompt",
+        "text": "If the caller simply asked for a person, say: \"Of course, let me pass you to the team.\"\n\nIf the topic is billing, an invoice, a balance, a refund, a warranty claim or a complaint, say in your own words that you cannot help with that on this line and that the team can, then say you will pass them over. Do not attempt an answer, do not guess at a figure, and do not defend the company.\n\nIf the caller is abusive, do not argue and do not lecture them. Say once: \"Let me pass you to the team,\" and move on.\n\nKeep all of this to one or two short sentences."
+      },
+      "skip_response_edge": {
+        "id": "e_tr_skip",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Skip response"
+        },
+        "destination_node_id": "n_transfer"
+      },
+      "edges": [
+        {
+          "id": "e_tr_yes",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller accepts being passed to the team, or asked for a person in the first place"
+          },
+          "destination_node_id": "n_transfer"
+        },
+        {
+          "id": "e_tr_no",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller declines the transfer and wants to carry on with the service call instead"
+          },
+          "destination_node_id": "n_wrap_up"
+        }
+      ],
+      "else_edge": {
+        "id": "e_tr_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_transfer"
+      }
+    },
+    {
+      "id": "n_transfer",
+      "type": "transfer_call",
+      "name": "15a. Warm transfer to the team",
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Putting you through now, one moment."
+      },
+      "transfer_destination": {
+        "type": "predefined",
+        "number": "{{dispatch_number}}"
+      },
+      "transfer_option": {
+        "type": "warm_transfer",
+        "show_transferee_as_caller": true,
+        "agent_detection_timeout_ms": 30000,
+        "transfer_ring_duration_ms": 30000,
+        "on_hold_music": "relaxing_sound",
+        "opt_out_human_detection": false,
+        "public_handoff_option": {
+          "type": "static_message",
+          "message": "I have a caller on the line for the team."
+        },
+        "private_handoff_option": {
+          "type": "prompt",
+          "prompt": "In one sentence, give the caller's first name if you know it, the town, and the category of what they need, for example 'Karen in Arlington Heights has a billing question.' Never state a price, a card number, or anything about another customer."
+        }
+      },
+      "edge": {
+        "id": "e_tx_failed",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Transfer failed"
+        },
+        "destination_node_id": "n_transfer_fallback"
+      }
+    },
+    {
+      "id": "n_transfer_fallback",
+      "type": "conversation",
+      "name": "15b. Transfer failed, take a message instead",
+      "instruction": {
+        "type": "prompt",
+        "text": "Say: \"Nobody is free to pick up right now. I can take your name and number and have them call you back. Would that work?\" Do not ask for a different number unless the caller offers one."
+      },
+      "edges": [
+        {
+          "id": "e_tf_yes",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller accepts a callback or gives a number"
+          },
+          "destination_node_id": "n_take_message"
+        },
+        {
+          "id": "e_tf_no",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller declines a callback or wants to hang up"
+          },
+          "destination_node_id": "n_end"
+        }
+      ],
+      "else_edge": {
+        "id": "e_tf_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_take_message"
+      }
+    },
+    {
+      "id": "n_spam",
+      "type": "conversation",
+      "name": "16. Spam and sales calls. Global, reachable from anywhere",
+      "global_node_setting": {
+        "condition": "The call is a sales pitch, a marketing or lead generation call, a recorded message, a robocall, a survey, or someone selling advertising, insurance, leads or equipment to the company rather than asking for service.",
+        "cool_down": 0
+      },
+      "instruction": {
+        "type": "static_text",
+        "text": "This line is for service calls only, so I will let you go. Thanks, goodbye."
+      },
+      "skip_response_edge": {
+        "id": "e_sp_skip",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Skip response"
+        },
+        "destination_node_id": "n_end"
+      },
+      "edges": [
+        {
+          "id": "e_sp_service",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller says they actually do have a heating or cooling problem at their own property"
+          },
+          "destination_node_id": "n_triage"
+        }
+      ],
+      "else_edge": {
+        "id": "e_sp_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_end"
+      }
+    },
+    {
+      "id": "n_no_response",
+      "type": "conversation",
+      "name": "17. Silence, ask once then let them go",
+      "instruction": {
+        "type": "static_text",
+        "text": "I cannot hear anything, are you still there?"
+      },
+      "edges": [
+        {
+          "id": "e_nr_speaks",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller speaks and describes a heating or cooling problem"
+          },
+          "destination_node_id": "n_triage"
+        },
+        {
+          "id": "e_nr_person",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Caller speaks and asks for a person"
+          },
+          "destination_node_id": "n_transfer_request"
+        }
+      ],
+      "else_edge": {
+        "id": "e_nr_else",
+        "transition_condition": {
+          "type": "prompt",
+          "prompt": "Else"
+        },
+        "destination_node_id": "n_end"
+      }
+    },
+    {
+      "id": "n_end",
+      "type": "end",
+      "name": "18. End",
+      "speak_during_execution": true,
+      "instruction": {
+        "type": "static_text",
+        "text": "Thanks for calling {{company_name}}. Stay warm, goodbye."
+      }
+    }
+  ]
+}

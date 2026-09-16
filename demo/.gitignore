@@ -1,0 +1,22 @@
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+
+# Dependencies
+node_modules/
+
+# Local environment, never commit a filled one
+.env
+.env.local
+.env.*.local
+
+# Embedded PGlite database
+.pgdata/
+
+# Retell object ids created by retell/push-demo-config.ts
+retell/.demo-ids.json
+
+# Editor and OS noise
+.DS_Store
+*.log

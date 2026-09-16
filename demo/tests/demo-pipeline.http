@@ -1,0 +1,342 @@
+### HVAC AI receptionist demo: the whole pipeline without a voice call.
+#
+# This is the fallback for demo day. If the audio fails, if the phone number
+# will not connect, or if the Render instance is cold and the room is waiting,
+# run these requests from top to bottom and every panel fills in exactly as it
+# would during a real call: signature step, triage, service area check, customer
+# match, arrival windows, the job on the dispatch board, the technician page,
+# the caller confirmation, and the call outcome.
+#
+# Needs the VS Code extension "REST Client" (humao.rest-client). Click the
+# "Send Request" link that appears above each ### block.
+#
+# BEFORE YOU START
+#   1. Set ALLOW_UNSIGNED_WEBHOOKS=true in .env.local, or in the Render
+#      environment, and restart the app. Without it every request below comes
+#      back 401, because none of them carry an x-retell-signature header.
+#   2. Reset the demo so the seeded week is clean (request 1).
+#   3. Switch @host below to whichever environment you are demonstrating.
+#
+# AFTERWARDS, set ALLOW_UNSIGNED_WEBHOOKS back to false. It is a demo escape
+# hatch and nothing else.
+
+@host = http://localhost:3000
+# @host = https://hvac-demo.onrender.com
+
+# One call id ties every request below into a single call on the dashboard.
+# Change it if you want a second, separate call on the timeline.
+@callId = call_demo_fallback_001
+
+# The caller for the main run. This number is NOT in the seeded customer book,
+# so find_or_create_customer takes the create path, which is the more
+# interesting one to show. Karen Dolan on +13125550188 is seeded, use that
+# number instead if you want the "good to hear from you again" match path.
+@caller = +13125550199
+@line = +13125550137
+
+
+### 1. Reset the demo to a fresh week
+POST {{host}}/api/reset
+Content-Type: application/json
+
+###
+
+
+### 2. Is the tool endpoint reachable, and is the signature check off?
+# Expect: { "ok": true, "signature_required": false }
+# If signature_required is true, ALLOW_UNSIGNED_WEBHOOKS is not set and every
+# request below will return 401.
+GET {{host}}/api/retell/tool
+
+###
+
+
+### 3. Call starts. Opens the call row so the dashboard has something to draw.
+POST {{host}}/api/retell/post-call
+Content-Type: application/json
+
+{
+  "event": "call_started",
+  "call": {
+    "call_id": "{{callId}}",
+    "from_number": "{{caller}}",
+    "to_number": "{{line}}",
+    "call_type": "phone_call"
+  }
+}
+
+###
+
+
+### 4. triage_problem, on the caller's own words.
+# Expect urgency emergency, reason "no heat", job_type "no_heat",
+# dispatch_tonight true, three qualifying questions, and a say line.
+# The urgency badge should flip to EMERGENCY the moment this lands.
+# @name triage
+POST {{host}}/api/retell/tool
+Content-Type: application/json
+
+{
+  "name": "triage_problem",
+  "call": {
+    "call_id": "{{callId}}",
+    "from_number": "{{caller}}",
+    "to_number": "{{line}}"
+  },
+  "args": {
+    "description": "my furnace is dead and there's no heat"
+  }
+}
+
+###
+
+
+### 5. check_service_area, covered. Runs before anything is created.
+# Expect: { "covered": true, "town": "Arlington Heights", "say": "Yes, we cover Arlington Heights." }
+POST {{host}}/api/retell/tool
+Content-Type: application/json
+
+{
+  "name": "check_service_area",
+  "call": { "call_id": "{{callId}}", "from_number": "{{caller}}" },
+  "args": { "postal_code": "60004" }
+}
+
+###
+
+
+### 5b. check_service_area, not covered. Scene two, the out of area decline.
+# Expect: { "covered": false, "say": "We do not cover Chicago, Lincoln Park, ..." }
+# Nothing is written to dispatch on this path, which is the whole point.
+# Send this one under its own call id if you want it as a separate call row.
+POST {{host}}/api/retell/tool
+Content-Type: application/json
+
+{
+  "name": "check_service_area",
+  "call": { "call_id": "call_demo_fallback_002", "from_number": "+17735550144" },
+  "args": { "postal_code": "60614" }
+}
+
+###
+
+
+### 6. find_or_create_customer. No match on this number, so it creates one.
+# Expect: { "status": "created", "client_id": "...", "property_id": "...", "first_name": "Dana" }
+# The town is filled in from the postcode, so city can be left empty.
+# @name customer
+POST {{host}}/api/retell/tool
+Content-Type: application/json
+
+{
+  "name": "find_or_create_customer",
+  "call": { "call_id": "{{callId}}", "from_number": "{{caller}}" },
+  "args": {
+    "first_name": "Dana",
+    "last_name": "Mercer",
+    "street": "1402 South Highland Avenue",
+    "city": "",
+    "postal_code": "60004",
+    "phone": ""
+  }
+}
+
+###
+
+
+### 7. get_arrival_windows. At most three, each with the exact words to speak.
+# Expect: { "windows": [ { "id": "...", "say": "tonight between 8:00 PM and 10:00 PM with Dave" } ] }
+# or { "status": "none_available" } if the seeded board happens to be full.
+# @name windows
+POST {{host}}/api/retell/tool
+Content-Type: application/json
+
+{
+  "name": "get_arrival_windows",
+  "call": { "call_id": "{{callId}}", "from_number": "{{caller}}" },
+  "args": {
+    "urgency": "emergency",
+    "job_type": "no_heat"
+  }
+}
+
+###
+
+
+### 8. book_visit, using the first window get_arrival_windows just returned.
+# The window id carries its own start time, technician and duration, so no
+# server side state is needed between the two requests.
+# Expect: { "status": "booked", "say": "...", "job_id": "..." }
+# { "status": "queued" } means the write could not land, which is the failure
+# path the agent turns into a callback rather than a dead end.
+# @name booking
+POST {{host}}/api/retell/tool
+Content-Type: application/json
+
+{
+  "name": "book_visit",
+  "call": { "call_id": "{{callId}}", "from_number": "{{caller}}" },
+  "args": {
+    "window_id": "{{windows.response.body.$.windows[0].id}}",
+    "client_id": "{{customer.response.body.$.client_id}}",
+    "property_id": "{{customer.response.body.$.property_id}}",
+    "urgency": "emergency",
+    "job_type": "no_heat",
+    "symptom": "Furnace dead since this morning, thermostat calling for heat, unit about twelve years old"
+  }
+}
+
+###
+
+
+### 9. notify_on_call. Pages the technician and texts the caller.
+# Expect: { "status": "notified", "technician": "..." }
+# The technician is only paged for emergency work that is genuinely after
+# hours, so during office hours this queues for the morning dispatch instead.
+# Both texts appear on the phone mock up while Twilio is still in preview mode.
+POST {{host}}/api/retell/tool
+Content-Type: application/json
+
+{
+  "name": "notify_on_call",
+  "call": { "call_id": "{{callId}}", "from_number": "{{caller}}" },
+  "args": {
+    "urgency": "emergency",
+    "summary": "No heat, furnace dead, 1402 South Highland Avenue, Arlington Heights",
+    "window": "{{booking.response.body.$.say}}",
+    "caller_phone": ""
+  }
+}
+
+###
+
+
+### 9b. Optional: log_estimate_request, scene four, the quote request.
+# An estimate never books a technician. It creates a request for the team who
+# sell replacements. Send it under its own call id to keep the timeline clean.
+POST {{host}}/api/retell/tool
+Content-Type: application/json
+
+{
+  "name": "log_estimate_request",
+  "call": { "call_id": "call_demo_fallback_003", "from_number": "+13125550173" },
+  "args": {
+    "client_id": "cli_005",
+    "property_id": "prop_005",
+    "details": "Wants a price on a full system replacement. Current furnace about eighteen years old, single family home, roughly 2200 square feet."
+  }
+}
+
+###
+
+
+### 10. Call ends.
+POST {{host}}/api/retell/post-call
+Content-Type: application/json
+
+{
+  "event": "call_ended",
+  "call": {
+    "call_id": "{{callId}}",
+    "from_number": "{{caller}}",
+    "to_number": "{{line}}",
+    "disconnection_reason": "user_hangup"
+  }
+}
+
+###
+
+
+### 11. Call analyzed. The outcome and the analysis fields land here.
+# These four field names match post_call_analysis_data in retell/demo-agent.json.
+POST {{host}}/api/retell/post-call
+Content-Type: application/json
+
+{
+  "event": "call_analyzed",
+  "call": {
+    "call_id": "{{callId}}",
+    "from_number": "{{caller}}",
+    "to_number": "{{line}}",
+    "call_analysis": {
+      "call_summary": "Caller had no heat. Triaged as an emergency, postcode confirmed in the service area, new customer created, visit booked tonight and the on call technician paged.",
+      "user_sentiment": "Positive",
+      "call_successful": true,
+      "custom_analysis_data": {
+        "outcome": "booked",
+        "urgency": "emergency",
+        "service_area_ok": true,
+        "technician_paged": true
+      }
+    }
+  }
+}
+
+###
+
+
+### 11b. The out of area call, analyzed. Scene two on the outcome panel.
+POST {{host}}/api/retell/post-call
+Content-Type: application/json
+
+{
+  "event": "call_analyzed",
+  "call": {
+    "call_id": "call_demo_fallback_002",
+    "from_number": "+17735550144",
+    "call_analysis": {
+      "call_summary": "Caller in Lincoln Park. Postcode is outside the service area, so the assistant declined politely and offered to take a message. Nothing was sent to dispatch.",
+      "user_sentiment": "Neutral",
+      "call_successful": true,
+      "custom_analysis_data": {
+        "outcome": "out_of_area",
+        "urgency": "emergency",
+        "service_area_ok": false,
+        "technician_paged": false
+      }
+    }
+  }
+}
+
+###
+
+
+### 11c. The quote call, analyzed. Scene four on the outcome panel.
+POST {{host}}/api/retell/post-call
+Content-Type: application/json
+
+{
+  "event": "call_analyzed",
+  "call": {
+    "call_id": "call_demo_fallback_003",
+    "from_number": "+13125550173",
+    "call_analysis": {
+      "call_summary": "Caller wanted a price on a replacement system. Qualified on system age, property type and size, logged as an estimate request for the sales team. No technician booked and no price quoted.",
+      "user_sentiment": "Positive",
+      "call_successful": true,
+      "custom_analysis_data": {
+        "outcome": "estimate_request",
+        "urgency": "quote",
+        "service_area_ok": true,
+        "technician_paged": false
+      }
+    }
+  }
+}
+
+###
+
+
+### 12. Read the state the panels draw from, to confirm it all landed.
+GET {{host}}/api/state
+
+###
+
+
+### 13. Public config, to confirm which mode Jobber and SMS are in.
+# integrations.jobber.mode is mock until the three JOBBER_ variables are set
+# and JOBBER_MODE is not forced to mock. integrations.sms.mode is preview until
+# the three TWILIO_ variables are set.
+GET {{host}}/api/config
+
+###

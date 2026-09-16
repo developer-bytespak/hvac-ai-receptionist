@@ -1,0 +1,57 @@
+{
+  "agent_name": "hvac-demo-service-line",
+
+  "response_engine": {
+    "type": "conversation-flow",
+    "conversation_flow_id": "<CONVERSATION_FLOW_ID>"
+  },
+
+  "voice_id": "<VOICE_ID>",
+  "voice_speed": 1,
+  "language": "en-US",
+
+  "data_storage_setting": "everything",
+  "data_storage_retention_days": 30,
+
+  "opt_in_signed_url": true,
+  "signed_url_expiration_ms": 3600000,
+
+  "webhook_url": "https://<DEMO_HOST>/api/retell/post-call",
+
+  "post_call_analysis_data": [
+    {
+      "type": "enum",
+      "name": "outcome",
+      "description": "What actually happened on this call. booked when a technician visit was written to the schedule. estimate_request when a replacement estimate was logged for the sales team and no visit was booked. out_of_area when the property postcode was outside the service area and nothing was dispatched. transferred when the caller was handed to a person. message_taken when the assistant took a name and a number for the office to call back. spam when the call was a sales pitch, a recorded message or a robocall. voicemail when the call reached a machine or nobody ever spoke. abandoned when the caller hung up part way through and none of the above had happened yet.",
+      "choices": [
+        "booked",
+        "estimate_request",
+        "out_of_area",
+        "transferred",
+        "message_taken",
+        "spam",
+        "voicemail",
+        "abandoned"
+      ]
+    },
+    {
+      "type": "enum",
+      "name": "urgency",
+      "description": "The urgency the assistant settled on for this call, taken from the triage_problem result. emergency for no heat, a suspected gas leak, a carbon monoxide alarm or water coming from the system. urgent for no cooling or an unusual noise or burning smell. routine for a tune up, a filter or a thermostat fault. quote when the caller wanted a price on a replacement system. unknown when the call ended before the problem was triaged, or the call was spam or a wrong number.",
+      "choices": ["emergency", "urgent", "routine", "quote", "unknown"]
+    },
+    {
+      "type": "boolean",
+      "name": "service_area_ok",
+      "description": "True if check_service_area confirmed the property postcode is inside the service area. False if the postcode came back outside the area, and false if the postcode was never checked on this call."
+    },
+    {
+      "type": "boolean",
+      "name": "technician_paged",
+      "description": "True only if notify_on_call reported that the on call technician was paged for this call. False if the job was queued for the morning dispatch, if no booking was made, or if notify_on_call was never reached."
+    }
+  ],
+
+  "max_call_duration_ms": 900000,
+  "end_call_after_silence_ms": 20000
+}

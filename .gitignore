@@ -1,0 +1,9 @@
+.env
+*.local
+node_modules/
+.next/
+out/
+next-env.d.ts
+.pgdata/
+demo/retell/.demo-ids.json
+*.log
