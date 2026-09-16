@@ -7,3 +7,5 @@ next-env.d.ts
 .pgdata/
 demo/retell/.demo-ids.json
 *.log
+tsconfig.tsbuildinfo
+*.tsbuildinfo
