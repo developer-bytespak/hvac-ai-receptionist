@@ -13,6 +13,35 @@ import { SCHEMA_SQL, TRUNCATE_SQL } from "./schema";
 
 export type Row = Record<string, any>;
 
+export type DatabaseMode = "postgres" | "embedded-local" | "embedded-ephemeral";
+
+function isServerless(): boolean {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+/**
+ * Which store is in use, and whether it is shared between requests.
+ *
+ * This matters more than it looks. On a serverless host each request can land
+ * on a different instance, so the embedded database gives every request its
+ * own empty copy: the agent books a job on one instance and the browser polls
+ * another, and the board never updates. A demo deployed that way looks broken
+ * in the one way that matters. Set DATABASE_URL to a real Postgres.
+ */
+export function databaseMode(): DatabaseMode {
+  if (process.env.DATABASE_URL) return "postgres";
+  return isServerless() ? "embedded-ephemeral" : "embedded-local";
+}
+
+export function databaseWarning(): string | null {
+  if (databaseMode() !== "embedded-ephemeral") return null;
+  return (
+    "No DATABASE_URL is set, so this deployment is using the embedded database in a " +
+    "serverless function. State is not shared between requests, so bookings will not " +
+    "appear on the board. Add a Postgres database and set DATABASE_URL."
+  );
+}
+
 interface Driver {
   query(sql: string, params?: any[]): Promise<{ rows: Row[] }>;
   /** Runs a script that contains several statements. */
@@ -45,8 +74,11 @@ async function makeDriver(): Promise<Driver> {
     };
   }
 
+  // Serverless filesystems are read only apart from /tmp, so the embedded
+  // database cannot live beside the code there.
+  const defaultDir = isServerless() ? "/tmp/pgdata" : "./.pgdata";
   const { PGlite } = await import("@electric-sql/pglite");
-  const pg = new PGlite(process.env.PGLITE_DIR || "./.pgdata");
+  const pg = new PGlite(process.env.PGLITE_DIR || defaultDir);
   // PGlite boots a WebAssembly Postgres. Touching it before that finishes
   // aborts the runtime, which showed up as a 500 on the first request after a
   // cold start and then worked forever after.

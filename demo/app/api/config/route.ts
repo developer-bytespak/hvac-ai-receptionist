@@ -4,6 +4,7 @@
  */
 import { NextResponse } from "next/server";
 import { COMPANY, SERVICE_AREA, TECHNICIANS } from "@/lib/config";
+import { databaseMode, databaseWarning } from "@/lib/db";
 import { jobber, jobberConfigured } from "@/lib/jobber";
 import { smsConfigured, smsMode } from "@/lib/sms";
 
@@ -24,6 +25,7 @@ export async function GET() {
       ),
     },
     integrations: {
+      database: { mode: databaseMode(), warning: databaseWarning() },
       jobber: { mode: jobber().mode, credentialsPresent: jobberConfigured() },
       sms: { mode: smsMode(), credentialsPresent: smsConfigured() },
     },

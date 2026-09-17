@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { databaseWarning } from "@/lib/db";
 import { isAfterHours } from "@/lib/config";
 import { logPipeline, touchCall } from "@/lib/ops";
 import { signatureRequired, verifyRetellSignature, type ToolRequest } from "@/lib/retell";
@@ -14,6 +15,19 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  try {
+    return await handle(request);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown error";
+    // Retell reads this aloud in the worst case, so keep it short and calm.
+    return NextResponse.json(
+      { status: "error", say: "I could not reach the schedule just now", detail: message, hint: databaseWarning() },
+      { status: 200 },
+    );
+  }
+}
+
+async function handle(request: NextRequest) {
   const startedAt = Date.now();
   const rawBody = await request.text();
 

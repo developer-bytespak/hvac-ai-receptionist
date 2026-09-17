@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { q } from "@/lib/db";
+import { databaseWarning, q } from "@/lib/db";
 import {
   BUSINESS_HOURS,
   COMPANY,
@@ -32,6 +32,20 @@ function num(value: string | null, fallback = 0): number {
 }
 
 export async function GET(request: NextRequest) {
+  try {
+    return await readState(request);
+  } catch (err) {
+    // A blank 500 on the endpoint that drives every panel is the worst
+    // possible failure to debug during a demo, so say what went wrong.
+    const message = err instanceof Error ? err.message : "unknown error";
+    return NextResponse.json(
+      { error: "could not read the demo state", detail: message, hint: databaseWarning() },
+      { status: 500 },
+    );
+  }
+}
+
+async function readState(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const sincePipeline = num(params.get("pipeline"));
   const sinceEvents = num(params.get("events"));
