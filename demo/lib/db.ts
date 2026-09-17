@@ -15,6 +15,46 @@ export type Row = Record<string, any>;
 
 export type DatabaseMode = "postgres" | "embedded-local" | "embedded-ephemeral";
 
+/**
+ * Finds the Postgres connection string whatever the host called it.
+ *
+ * Vercel's own Postgres sets POSTGRES_URL, its Neon and Supabase marketplace
+ * integrations set DATABASE_URL or POSTGRES_PRISMA_URL, and Render sets
+ * DATABASE_URL. Accepting all of them removes a step that is easy to get
+ * wrong and hard to spot, because the app just silently runs on the wrong
+ * store.
+ *
+ * Pooled URLs come first: serverless opens and drops connections constantly,
+ * which is exactly what a pooler is for.
+ */
+export function connectionString(): string | undefined {
+  const candidates = [
+    process.env.DATABASE_URL,
+    process.env.POSTGRES_URL,
+    process.env.POSTGRES_PRISMA_URL,
+    process.env.DATABASE_POSTGRES_URL,
+    process.env.POSTGRES_URL_NON_POOLING,
+    process.env.DATABASE_URL_UNPOOLED,
+  ];
+  return candidates.find((v) => typeof v === "string" && v.startsWith("postgres"));
+}
+
+/** Which variable supplied the connection, for the diagnostics endpoint. */
+export function connectionSource(): string | null {
+  for (const name of [
+    "DATABASE_URL",
+    "POSTGRES_URL",
+    "POSTGRES_PRISMA_URL",
+    "DATABASE_POSTGRES_URL",
+    "POSTGRES_URL_NON_POOLING",
+    "DATABASE_URL_UNPOOLED",
+  ]) {
+    const v = process.env[name];
+    if (typeof v === "string" && v.startsWith("postgres")) return name;
+  }
+  return null;
+}
+
 function isServerless(): boolean {
   return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 }
@@ -29,16 +69,17 @@ function isServerless(): boolean {
  * in the one way that matters. Set DATABASE_URL to a real Postgres.
  */
 export function databaseMode(): DatabaseMode {
-  if (process.env.DATABASE_URL) return "postgres";
+  if (connectionString()) return "postgres";
   return isServerless() ? "embedded-ephemeral" : "embedded-local";
 }
 
 export function databaseWarning(): string | null {
   if (databaseMode() !== "embedded-ephemeral") return null;
   return (
-    "No DATABASE_URL is set, so this deployment is using the embedded database in a " +
-    "serverless function. State is not shared between requests, so bookings will not " +
-    "appear on the board. Add a Postgres database and set DATABASE_URL."
+    "No Postgres connection string was found, so this deployment is using the embedded " +
+    "database inside a serverless function. State is not shared between requests, so " +
+    "bookings will not appear on the board. Attach a Postgres database and redeploy. " +
+    "Any of DATABASE_URL, POSTGRES_URL or POSTGRES_PRISMA_URL will be picked up."
   );
 }
 
@@ -52,7 +93,7 @@ let driverPromise: Promise<Driver> | null = null;
 let schemaReady: Promise<void> | null = null;
 
 async function makeDriver(): Promise<Driver> {
-  const url = process.env.DATABASE_URL;
+  const url = connectionString();
 
   if (url) {
     const { Pool } = await import("pg");
