@@ -61,6 +61,21 @@ export default function Page() {
   const [theme, setTheme] = useState<Theme>("system");
   const [resetting, setResetting] = useState(false);
 
+  /**
+   * What the screen actually looks like right now. With no explicit choice
+   * the operating system decides, so the toggle has to ask it rather than
+   * guess, or the button offers the theme you are already looking at.
+   */
+  const [systemLight, setSystemLight] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: light)");
+    const sync = () => setSystemLight(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+  const showingLight = theme === "light" || (theme === "system" && systemLight);
+
   const { state, clear } = useDemoState(dayOffset);
   const call = useRetellCall();
 
@@ -221,9 +236,9 @@ export default function Page() {
           <button
             type="button"
             className="btn btn-quiet"
-            onClick={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+            onClick={() => setTheme(showingLight ? "dark" : "light")}
           >
-            {theme === "dark" ? "Light" : "Dark"}
+            {showingLight ? "Dark" : "Light"}
           </button>
 
           <button type="button" className="btn" onClick={onReset} disabled={resetting}>
