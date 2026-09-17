@@ -54,10 +54,10 @@
   "max_call_duration_ms": 900000,
   "end_call_after_silence_ms": 20000,
   "stt_mode": "accurate",
-  "denoising_mode": "noise-and-background-speech-cancellation",
+  "denoising_mode": "noise-cancellation",
   "reminder_trigger_ms": 20000,
   "reminder_max_count": 1,
-  "interruption_sensitivity": 0.7,
+  "interruption_sensitivity": 1,
   "responsiveness": 1,
   "boosted_keywords": [
     "furnace",
@@ -81,5 +81,6 @@
     "Wheeling",
     "Hoffman Estates",
     "Northline"
-  ]
+  ],
+  "begin_message_delay_ms": 1000
 }
