@@ -1587,7 +1587,7 @@
       "name": "15. Person, abuse, billing or complaint. Global, reachable from anywhere",
       "global_node_setting": {
         "condition": "The caller asks for a person, a human, the office, dispatch, the owner or a manager, or asks to speak to someone, OR the caller becomes abusive or starts swearing at the assistant, OR the topic turns to billing, an invoice, a bill, a balance, what they owe, a refund, a warranty claim, or a complaint about work already done.",
-        "cool_down": 0
+        "cool_down": 1
       },
       "instruction": {
         "type": "prompt",
@@ -1707,7 +1707,7 @@
       "name": "16. Spam and sales calls. Global, reachable from anywhere",
       "global_node_setting": {
         "condition": "The call is a sales pitch, a marketing or lead generation call, a recorded message, a robocall, a survey, or someone selling advertising, insurance, leads or equipment to the company rather than asking for service.",
-        "cool_down": 0
+        "cool_down": 1
       },
       "instruction": {
         "type": "static_text",
