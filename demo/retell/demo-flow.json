@@ -555,15 +555,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_ea_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_emergency_ack"
-      }
+      ]
     },
     {
       "id": "n_urgent_ack",
@@ -590,15 +582,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_ua_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_urgent_ack"
-      }
+      ]
     },
     {
       "id": "n_routine_ack",
@@ -625,15 +609,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_ra_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_routine_ack"
-      }
+      ]
     },
     {
       "id": "n_check_area",
@@ -794,15 +770,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_qe_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_qualify_emergency"
-      }
+      ]
     },
     {
       "id": "n_qualify_urgent",
@@ -829,15 +797,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_qu_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_qualify_urgent"
-      }
+      ]
     },
     {
       "id": "n_qualify_routine",
@@ -864,15 +824,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_qr_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_qualify_routine"
-      }
+      ]
     },
     {
       "id": "n_collect_details",
@@ -899,15 +851,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_cd_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_collect_details"
-      }
+      ]
     },
     {
       "id": "n_find_customer",
@@ -1091,15 +1035,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_ow_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_offer_windows"
-      }
+      ]
     },
     {
       "id": "n_no_windows",
@@ -1108,14 +1044,6 @@
       "instruction": {
         "type": "static_text",
         "text": "I do not have a window I can promise you right now, so let me take your details and have dispatch call you straight back."
-      },
-      "skip_response_edge": {
-        "id": "e_nw_skip",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Skip response"
-        },
-        "destination_node_id": "n_take_message"
       },
       "edges": [],
       "else_edge": {
@@ -1333,15 +1261,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_qq_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_quote_qualify"
-      }
+      ]
     },
     {
       "id": "n_quote_details",
@@ -1368,15 +1288,7 @@
           },
           "destination_node_id": "n_transfer_request"
         }
-      ],
-      "else_edge": {
-        "id": "e_qdt_else",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Else"
-        },
-        "destination_node_id": "n_quote_details"
-      }
+      ]
     },
     {
       "id": "n_find_customer_quote",
@@ -1593,14 +1505,6 @@
         "type": "prompt",
         "text": "If the caller simply asked for a person, say: \"Of course, let me pass you to the team.\"\n\nIf the topic is billing, an invoice, a balance, a refund, a warranty claim or a complaint, say in your own words that you cannot help with that on this line and that the team can, then say you will pass them over. Do not attempt an answer, do not guess at a figure, and do not defend the company.\n\nIf the caller is abusive, do not argue and do not lecture them. Say once: \"Let me pass you to the team,\" and move on.\n\nKeep all of this to one or two short sentences."
       },
-      "skip_response_edge": {
-        "id": "e_tr_skip",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Skip response"
-        },
-        "destination_node_id": "n_transfer"
-      },
       "edges": [
         {
           "id": "e_tr_yes",
@@ -1664,7 +1568,8 @@
           "prompt": "Transfer failed"
         },
         "destination_node_id": "n_transfer_fallback"
-      }
+      },
+      "edges": []
     },
     {
       "id": "n_transfer_fallback",
@@ -1712,14 +1617,6 @@
       "instruction": {
         "type": "static_text",
         "text": "This line is for service calls only, so I will let you go. Thanks, goodbye."
-      },
-      "skip_response_edge": {
-        "id": "e_sp_skip",
-        "transition_condition": {
-          "type": "prompt",
-          "prompt": "Skip response"
-        },
-        "destination_node_id": "n_end"
       },
       "edges": [
         {
@@ -1783,7 +1680,8 @@
       "instruction": {
         "type": "static_text",
         "text": "Thanks for calling {{company_name}}. Stay warm, goodbye."
-      }
+      },
+      "edges": []
     }
   ]
 }

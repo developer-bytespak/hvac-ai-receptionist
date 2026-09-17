@@ -9,7 +9,8 @@
     "seed": "tsx lib/seed-cli.ts",
     "test": "tsx tests/smoke.ts",
     "typecheck": "tsc --noEmit",
-    "push:retell": "tsx retell/push-demo-config.ts"
+    "push:retell": "tsx retell/validate-flow.ts && tsx retell/push-demo-config.ts",
+    "validate:flow": "tsx retell/validate-flow.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.2.17",
