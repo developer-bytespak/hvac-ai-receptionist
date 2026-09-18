@@ -219,7 +219,7 @@ export default function Page() {
               <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d={item.icon} />
               </svg>
-              {item.label}
+              <span className="nav-label">{item.label}</span>
             </button>
           ))}
         </nav>
@@ -247,8 +247,11 @@ export default function Page() {
             </span>
           </div>
 
-          <button type="button" className="side-reset" onClick={onReset} disabled={resetting}>
-            <span>{resetting ? "Resetting" : "Reset demo"}</span>
+          <button type="button" className="side-reset" onClick={onReset} disabled={resetting} title="Reset demo">
+            <svg className="side-reset-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" />
+            </svg>
+            <span className="side-reset-label">{resetting ? "Resetting" : "Reset demo"}</span>
             <span className="side-reset-hint">Clears the board and the ledger</span>
           </button>
         </div>

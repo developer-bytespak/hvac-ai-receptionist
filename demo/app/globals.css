@@ -355,6 +355,7 @@ button { font: inherit; color: inherit; }
   -webkit-backdrop-filter: blur(1.2857rem) saturate(1.3);
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .side-brand { display: flex; align-items: center; gap: 0.7143rem; padding: 2px 0.4286rem; min-width: 0; }
@@ -460,6 +461,17 @@ button { font: inherit; color: inherit; }
 .side-reset:hover { background: var(--bg-inset); border-color: var(--line-2); }
 .side-reset:disabled { opacity: 0.5; cursor: not-allowed; }
 .side-reset-hint { font-size: var(--fs-micro); font-weight: 500; color: var(--text-3); }
+.side-reset-icon {
+  display: none;
+  width: 1.1429rem;
+  height: 1.1429rem;
+  margin: 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
 /* ---- stage: the greeting header and the working area ---- */
 
@@ -1658,12 +1670,25 @@ button { font: inherit; color: inherit; }
   .sms-note { padding: 0.3571rem var(--pad) 0.4286rem; }
 }
 
+/* =========================== very short windows =========================== */
+
+/* A small browser window, or a large monitor at a high zoom. Rather than
+   clip the bottom of the board, let the page scroll. */
+@media (max-height: 700px) {
+  .app { height: auto; min-height: 100dvh; }
+  .sidebar { position: sticky; top: 0; height: 100vh; height: 100dvh; }
+  .stage { grid-template-rows: auto auto; }
+  .main { min-height: 40rem; }
+}
+
 /* =========================== narrow screens =========================== */
 
 /* Laptops get an icon rail so the board keeps its width. */
 @media (max-width: 1500px) {
   :root { --side-w: 4.5714rem; }
-  .brand-text, .nav-item > :not(.nav-icon), .side-reset-hint, .flag-text, .chip-text { display: none; }
+  .brand-text, .nav-label, .side-reset-hint, .side-reset-label, .flag-text, .chip-text { display: none; }
+  .side-reset-icon { display: block; }
+  .side-reset { padding: 0.7143rem 0; }
   .nav-item { justify-content: center; padding: 0.7143rem 0; }
   .side-brand { justify-content: center; padding: 0; }
   .side-reset { text-align: center; }
