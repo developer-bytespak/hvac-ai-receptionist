@@ -31,12 +31,14 @@ export function startRingback(): Ringback | null {
   gate.gain.value = 0;
   gate.connect(master);
 
+  const oscs: OscillatorNode[] = [];
   for (const hz of [440, 480]) {
     const osc = ctx.createOscillator();
     osc.type = "sine";
     osc.frequency.value = hz;
     osc.connect(gate);
     osc.start();
+    oscs.push(osc);
   }
 
   // Ring for 1.4s, rest for 0.9s, until stopped.
@@ -56,17 +58,26 @@ export function startRingback(): Ringback | null {
   void ctx.resume();
 
   let stopped = false;
-  return {
-    stop: () => {
+  // Whatever happens upstream, a ring never outlives the pick-up.
+  const cap = window.setTimeout(() => stop(), 12_000);
+  const stop = () => {
       if (stopped) return;
       stopped = true;
       if (timer) window.clearTimeout(timer);
+      window.clearTimeout(cap);
       const now = ctx.currentTime;
       gate.gain.cancelScheduledValues(now);
       gate.gain.setTargetAtTime(0, now, 0.02);
       window.setTimeout(() => {
+        for (const o of oscs) {
+          try {
+            o.stop();
+          } catch {
+            /* already stopped */
+          }
+        }
         void ctx.close().catch(() => undefined);
       }, 150);
-    },
   };
+  return { stop };
 }

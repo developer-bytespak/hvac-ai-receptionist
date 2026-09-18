@@ -206,7 +206,12 @@ export function useRetellCall(): UseRetellCall {
             else if (status === "live") setPhase("live");
             else if (status === "ended") setPhase("ended");
           },
-          onTranscript: (transcript: LiveCallUtterance[]) => applyTranscript(transcript),
+          onTranscript: (transcript: LiveCallUtterance[]) => {
+            // The agent-start-talking event does not arrive on every transport,
+            // so the first agent line in the transcript also ends the ring.
+            if (transcript.some((u) => u.role === "agent" && "content" in u && u.content)) stopRinging();
+            applyTranscript(transcript);
+          },
           onAgentStartTalking: () => {
             stopRinging();
             setAgentTalking(true);
