@@ -1678,7 +1678,10 @@ button { font: inherit; color: inherit; }
   .app { height: auto; min-height: 100dvh; }
   .sidebar { position: sticky; top: 0; height: 100vh; height: 100dvh; }
   .stage { grid-template-rows: auto auto; }
-  .main { min-height: 40rem; }
+  .main { align-items: start; }
+  .col, .col-right { grid-template-rows: none; grid-auto-rows: auto; }
+  .panel { max-height: none; }
+  .panel > .scroll, .panel .scroll { flex: none; max-height: none; overflow: visible; }
 }
 
 /* =========================== narrow screens =========================== */
