@@ -1681,7 +1681,8 @@ button { font: inherit; color: inherit; }
   .main { align-items: start; }
   .col, .col-right { grid-template-rows: none; grid-auto-rows: auto; }
   .panel { max-height: none; }
-  .panel > .scroll, .panel .scroll { flex: none; max-height: none; overflow: visible; }
+  .panel .scroll { flex: none; max-height: none; overflow: visible; }
+  .transcript.scroll, .phone-screen.scroll { max-height: 24rem; overflow: auto; }
 }
 
 /* =========================== narrow screens =========================== */
