@@ -20,6 +20,7 @@ export interface CallPanelProps {
   callId: string | null;
   startedAt: number | null;
   agentTalking: boolean;
+  ringing: boolean;
   muted: boolean;
   turns: TranscriptTurn[];
   /** Set the instant triage answers, from the tool result or the poll. */
@@ -67,6 +68,7 @@ export default function CallPanel(props: CallPanelProps) {
     callId,
     startedAt,
     agentTalking,
+  ringing,
     muted,
     turns,
     urgency,
@@ -111,6 +113,9 @@ export default function CallPanel(props: CallPanelProps) {
     if (phase === "connecting") {
       return { className: "voice", label: "Connecting", hint: "Setting up the audio channel." };
     }
+    if (ringing && !agentTalking) {
+      return { className: "voice is-ringing", label: "Ringing", hint: "Picking up in a moment." };
+    }
     if (agentTalking) {
       return {
         className: "voice is-agent",
@@ -123,7 +128,7 @@ export default function CallPanel(props: CallPanelProps) {
       label: muted ? "Microphone muted" : "Listening",
       hint: muted ? "The agent cannot hear you." : "Go ahead, speak normally.",
     };
-  }, [isLive, phase, agentTalking, muted]);
+  }, [isLive, phase, agentTalking, ringing, muted]);
 
   return (
     <section className="panel" aria-label="Call the service line">
