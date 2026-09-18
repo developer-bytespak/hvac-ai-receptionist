@@ -263,11 +263,11 @@
 html {
   /* 14px at 1280 wide, about 17px at 1920, about 20px at 2560, capped at 22px. */
   font-size: clamp(14px, 0.47vw + 8px, 22px);
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
-  height: 100%;
+  min-height: 100%;
   margin: 0;
   background: var(--bg-app);
   color: var(--text);
@@ -276,7 +276,7 @@ body {
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow: hidden;
+  overflow-x: hidden;
   position: relative;
 }
 
