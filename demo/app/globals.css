@@ -336,10 +336,11 @@ button { font: inherit; color: inherit; }
 .app {
   position: relative;
   z-index: 1;
-  height: 100vh;
-  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: var(--side-w) minmax(0, 1fr);
+  align-items: start;
 }
 
 /* ---- sidebar ---- */
@@ -353,9 +354,12 @@ button { font: inherit; color: inherit; }
   background: var(--glass-strong);
   backdrop-filter: blur(1.2857rem) saturate(1.3);
   -webkit-backdrop-filter: blur(1.2857rem) saturate(1.3);
-  min-height: 0;
   min-width: 0;
   overflow: hidden;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .side-brand { display: flex; align-items: center; gap: 0.7143rem; padding: 2px 0.4286rem; min-width: 0; }
@@ -477,9 +481,8 @@ button { font: inherit; color: inherit; }
 
 .stage {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
   min-width: 0;
-  min-height: 0;
 }
 
 .topbar {
@@ -752,10 +755,9 @@ button { font: inherit; color: inherit; }
   min-height: 0;
 }
 
-.col { display: grid; gap: var(--gap); min-height: 0; min-width: 0; }
+.col { display: grid; gap: var(--gap); grid-auto-rows: auto; min-width: 0; align-content: start; }
 /* The ladder must show all nine rungs, the money block sizes to its own
    content, and the phone takes what is left. */
-.col-right { grid-template-rows: minmax(0, 1.85fr) auto minmax(0, 1fr); }
 
 .panel {
   display: flex;
@@ -1032,8 +1034,9 @@ button { font: inherit; color: inherit; }
 }
 
 .transcript {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: none;
+  min-height: 16rem;
+  max-height: 60vh;
   padding: 0.8571rem var(--pad) 1.1429rem;
   display: flex;
   flex-direction: column;
@@ -1171,14 +1174,13 @@ button { font: inherit; color: inherit; }
 }
 
 /* A little headroom so the first hour label is not clipped by the header. */
-.board-scroll { flex: 1 1 auto; min-height: 0; padding-top: 0.5714rem; }
+.board-scroll { flex: none; padding-top: 0.5714rem; overflow: clip; }
 
 .board-body {
   position: relative;
   display: grid;
   grid-template-columns: var(--time-col) repeat(var(--lanes, 1), minmax(0, 1fr));
   height: calc(var(--slot-h) * var(--slots, 24));
-  min-height: 100%;
 }
 
 .time-col { position: relative; border-right: 1px solid var(--line); }
@@ -1548,8 +1550,9 @@ button { font: inherit; color: inherit; }
 }
 
 .phone-screen {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: none;
+  min-height: 10rem;
+  max-height: 26rem;
   border-radius: 1.1429rem;
   background: var(--bg-surface);
   border: 1px solid var(--line);
@@ -1665,24 +1668,9 @@ button { font: inherit; color: inherit; }
   .rev-cell { padding: 0.2857rem 0.5714rem 0.3571rem var(--pad); }
   .rev-n { font-size: 1.4286rem; }
   .rev-caption { display: none; }
-  .col-right { grid-template-rows: minmax(0, 2fr) auto minmax(0, 0.95fr); }
+
   .phone-wrap { padding-top: 0.4286rem; }
   .sms-note { padding: 0.3571rem var(--pad) 0.4286rem; }
-}
-
-/* =========================== very short windows =========================== */
-
-/* A small browser window, or a large monitor at a high zoom. Rather than
-   clip the bottom of the board, let the page scroll. */
-@media (max-height: 700px) {
-  .app { height: auto; min-height: 100dvh; }
-  .sidebar { position: sticky; top: 0; height: 100vh; height: 100dvh; }
-  .stage { grid-template-rows: auto auto; }
-  .main { align-items: start; }
-  .col, .col-right { grid-template-rows: none; grid-auto-rows: auto; }
-  .panel { max-height: none; }
-  .panel .scroll { flex: none; max-height: none; overflow: visible; }
-  .transcript.scroll, .phone-screen.scroll { max-height: 24rem; overflow: auto; }
 }
 
 /* =========================== narrow screens =========================== */
@@ -1705,9 +1693,18 @@ button { font: inherit; color: inherit; }
 
 @media (max-width: 1180px) {
   :root { --gap: 0.7143rem; --pad: 0.8571rem; --time-col: 3.1429rem; --fs-display: 1.3571rem; }
-  .main { grid-template-columns: minmax(18.4286rem, 27fr) minmax(23.5714rem, 41fr) minmax(20.7143rem, 32fr); }
+  .main { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
+  .col-right { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
   .brand-tagline { display: none; }
   .rev-hero-n { font-size: 2.2857rem; }
+}
+
+@media (max-width: 820px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .col-right { grid-template-columns: minmax(0, 1fr); }
+  .topbar { flex-wrap: wrap; }
+  .header-controls { flex-wrap: wrap; }
+  .header-spacer { display: none; }
 }
 
 @media (max-width: 1060px) {
