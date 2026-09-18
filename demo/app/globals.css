@@ -529,6 +529,143 @@ button { font: inherit; color: inherit; }
   color: var(--text-3);
 }
 
+/* ---- the day picker: a pill with a month calendar behind it ---- */
+
+.daypick { position: relative; display: inline-flex; align-items: center; gap: 0.2857rem; }
+
+.daypick-step, .daypick-nav {
+  appearance: none;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg-sunken);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.daypick-step:hover:not(:disabled), .daypick-nav:hover:not(:disabled) { background: var(--bg-raised); color: var(--text); }
+.daypick-step:disabled, .daypick-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+.daypick-step svg, .daypick-nav svg, .daypick-ico {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.daypick-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5714rem;
+  height: 2.2857rem;
+  padding: 0 1rem 0 0.8571rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.daypick-btn:hover, .daypick-btn[aria-expanded="true"] { border-color: var(--accent-line); background: var(--bg-inset); }
+.daypick-ico { color: var(--accent); }
+.daypick-date { font-weight: 500; color: var(--text-3); }
+
+.daypick-pop {
+  position: absolute;
+  top: calc(100% + 0.5714rem);
+  right: 0;
+  z-index: 40;
+  width: 20.8571rem;
+  padding: 0.8571rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xl);
+  background: var(--glass-strong);
+  backdrop-filter: blur(1.4286rem) saturate(1.3);
+  -webkit-backdrop-filter: blur(1.4286rem) saturate(1.3);
+  box-shadow: var(--shadow-2), inset 0 1px 0 var(--glass-highlight);
+  animation: daypick-in var(--t-base) var(--ease-out);
+}
+@keyframes daypick-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.daypick-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5714rem; margin-bottom: 0.5714rem; }
+.daypick-month { font-family: var(--font-display); font-size: 1.0714rem; font-weight: 700; letter-spacing: -0.01em; }
+
+.daypick-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.daypick-wd {
+  text-align: center;
+  padding: 0.2857rem 0 0.4286rem;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.daypick-empty { height: 2.4286rem; }
+.daypick-day {
+  appearance: none;
+  position: relative;
+  height: 2.4286rem;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.daypick-day:hover:not(:disabled) { background: var(--bg-raised); }
+.daypick-day:disabled { color: var(--text-3); opacity: 0.45; cursor: not-allowed; }
+.daypick-day.is-today { border-color: var(--line-2); }
+.daypick-day.has-data::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0.2857rem;
+  width: 0.2857rem;
+  height: 0.2857rem;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.8;
+}
+.daypick-day.is-selected {
+  background: var(--accent-gradient);
+  color: var(--on-accent);
+  border-color: transparent;
+  box-shadow: var(--shadow-accent);
+}
+.daypick-day.is-selected::after { background: var(--on-accent); }
+
+.daypick-foot { display: flex; gap: 0.4286rem; margin-top: 0.7143rem; padding-top: 0.7143rem; border-top: 1px solid var(--line); }
+.daypick-quick {
+  appearance: none;
+  flex: 1;
+  padding: 0.4286rem 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--bg-sunken);
+  color: var(--text-2);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  cursor: pointer;
+}
+.daypick-quick:hover { background: var(--bg-raised); color: var(--text); }
+
 /* the avatar chip: who is carrying the pager */
 .avatar {
   display: inline-flex;

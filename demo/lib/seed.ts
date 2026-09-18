@@ -54,7 +54,7 @@ export async function seed(): Promise<void> {
   const seedTypes = JOB_TYPES.filter((t) => t.urgency === "routine" || t.urgency === "quote");
   let n = 0;
 
-  for (let day = 0; day <= 6; day++) {
+  for (let day = 0; day <= 14; day++) {
     const date = at(day, DAY_START_HOUR, 0);
     if (date.getDay() === 0) continue;
 
