@@ -24,6 +24,26 @@ import {
 import { useDemoState } from "@/app/hooks/useDemoState";
 import { useRetellCall } from "@/app/hooks/useRetellCall";
 
+/**
+ * The sidebar. Only the first item is a real screen. The others put a
+ * spotlight on one region of it, which is what a presenter actually wants
+ * mid demo: "let's look at the money" and the rest steps back.
+ */
+type View = "desk" | "call" | "board" | "money";
+
+const NAV: { id: View; label: string; icon: string }[] = [
+  { id: "desk", label: "Dispatch desk", icon: "M4 6h16M4 12h16M4 18h10" },
+  { id: "call", label: "Front desk", icon: "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" },
+  { id: "board", label: "Dispatch board", icon: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" },
+  { id: "money", label: "Pipeline and money", icon: "M12 3v18M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 2.5 5 3 5 1.1 5 3-2.2 3-5 3-5-1.1-5-3" },
+];
+
+function greetingForHour(hour: number): string {
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 const DAYS = [
   { offset: 0, label: "Today" },
   { offset: 1, label: "Tomorrow" },
@@ -60,6 +80,7 @@ export default function Page() {
   const [dayOffset, setDayOffset] = useState(0);
   const [theme, setTheme] = useState<Theme>("system");
   const [resetting, setResetting] = useState(false);
+  const [view, setView] = useState<View>("desk");
 
   /**
    * What the screen actually looks like right now. With no explicit choice
@@ -173,82 +194,130 @@ export default function Page() {
   }, [clear]);
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="brand">
+    <div className="app" data-view={view}>
+      <aside className="sidebar" aria-label="Sections">
+        <div className="side-brand">
           <span className="brand-mark" aria-hidden="true">
             {shortName.slice(0, 1).toUpperCase()}
           </span>
           <div className="brand-text">
-            <h1 className="brand-name">{companyName}</h1>
-            <p className="brand-tagline">{tagline}</p>
+            <span className="brand-name">{companyName}</span>
+            <span className="brand-tagline">AI dispatcher</span>
           </div>
         </div>
 
-        <span className={`hours-flag${afterHours ? " is-after" : ""}`} role="status">
-          <span className="flag-dot" aria-hidden="true" />
-          {afterHours ? (
-            <>
-              After hours, <span className="flag-who">{onCall}</span> is on call
-            </>
-          ) : (
-            <>Office open</>
-          )}
-        </span>
+        <nav className="nav">
+          {NAV.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="nav-item"
+              title={item.label}
+              aria-current={view === item.id ? "page" : undefined}
+              onClick={() => setView(item.id)}
+            >
+              <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d={item.icon} />
+              </svg>
+              {item.label}
+            </button>
+          ))}
+        </nav>
 
-        <div className="header-modes">
-          <span className={`chip${jobberMode === "live" ? " is-live" : ""}`}>
-            Jobber: {jobberMode}
-          </span>
-          <span className={`chip${smsMode === "twilio" ? " is-live" : ""}`}>
-            SMS: {smsMode === "twilio" ? "Twilio" : "preview"}
-          </span>
-        </div>
-
-        {!state.connected ? (
-          <span className="tag tag-warn" role="status">
-            Reconnecting
-          </span>
-        ) : null}
-
-        <div className="header-spacer" />
-
-        <div className="header-controls">
-          <div className="field">
-            <span className="field-label" id="day-label">
-              Day
+        <div className="side-foot">
+          <span className={`hours-flag${afterHours ? " is-after" : ""}`} role="status">
+            <span className="flag-dot" aria-hidden="true" />
+            <span className="flag-text">
+              {afterHours ? (
+                <>
+                  After hours, <span className="flag-who">{onCall}</span> on call
+                </>
+              ) : (
+                <>Office open</>
+              )}
             </span>
-            <div className="seg" role="group" aria-labelledby="day-label">
-              {DAYS.map((d) => (
-                <button
-                  key={d.offset}
-                  type="button"
-                  className="seg-btn"
-                  aria-pressed={dayOffset === d.offset}
-                  onClick={() => setDayOffset(d.offset)}
-                >
-                  {d.label}
-                </button>
-              ))}
+          </span>
+
+          <div className="side-modes">
+            <span className={`chip${jobberMode === "live" ? " is-live" : ""}`}>
+              <span className="chip-text">Jobber: {jobberMode}</span>
+            </span>
+            <span className={`chip${smsMode === "twilio" ? " is-live" : ""}`}>
+              <span className="chip-text">SMS: {smsMode === "twilio" ? "Twilio" : "preview"}</span>
+            </span>
+          </div>
+
+          <button type="button" className="side-reset" onClick={onReset} disabled={resetting}>
+            <span>{resetting ? "Resetting" : "Reset demo"}</span>
+            <span className="side-reset-hint">Clears the board and the ledger</span>
+          </button>
+        </div>
+      </aside>
+
+      <div className="stage">
+        <header className="topbar">
+          <div className="greet">
+            <h1 className="greet-title">
+              {greetingForHour(new Date().getHours())}, {shortName}
+            </h1>
+            <p className="greet-sub">{tagline}</p>
+          </div>
+
+          {!state.connected ? (
+            <span className="tag tag-warn" role="status">
+              Reconnecting
+            </span>
+          ) : null}
+
+          <div className="header-spacer" />
+
+          <div className="header-controls">
+            <div className="field">
+              <span className="field-label" id="day-label">
+                Day
+              </span>
+              <div className="seg" role="group" aria-labelledby="day-label">
+                {DAYS.map((d) => (
+                  <button
+                    key={d.offset}
+                    type="button"
+                    className="seg-btn"
+                    aria-pressed={dayOffset === d.offset}
+                    onClick={() => setDayOffset(d.offset)}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-quiet"
+              onClick={() => setTheme(showingLight ? "dark" : "light")}
+            >
+              {showingLight ? "Dark" : "Light"}
+            </button>
+
+            <div className="avatar" aria-label={`On call, ${onCall}`}>
+              <span className="avatar-mark" aria-hidden="true">
+                {onCall
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((w) => w[0] ?? "")
+                  .join("")
+                  .toUpperCase()}
+              </span>
+              <span className="avatar-text">
+                <span className="avatar-name">{onCall}</span>
+                <span className="avatar-sub">{afterHours ? "On call tonight" : "Next on call"}</span>
+              </span>
             </div>
           </div>
-
-          <button
-            type="button"
-            className="btn btn-quiet"
-            onClick={() => setTheme(showingLight ? "dark" : "light")}
-          >
-            {showingLight ? "Dark" : "Light"}
-          </button>
-
-          <button type="button" className="btn" onClick={onReset} disabled={resetting}>
-            {resetting ? "Resetting" : "Reset demo"}
-          </button>
-        </div>
-      </header>
+        </header>
 
       <main className="main">
-        <div className="col">
+        <div className="col col-call">
           <CallPanel
             phase={call.phase}
             isLive={call.isLive}
@@ -274,7 +343,7 @@ export default function Page() {
           />
         </div>
 
-        <div className="col">
+        <div className="col col-board">
           <DispatchBoard
             board={state.board}
             visits={state.visits}
@@ -283,7 +352,7 @@ export default function Page() {
           />
         </div>
 
-        <div className="col col-right">
+        <div className="col col-right col-money">
           <PipelinePanel
             events={state.pipeline}
             focusCallId={focusCallId}
@@ -294,6 +363,7 @@ export default function Page() {
           <PhonePanel messages={state.messages} smsMode={smsMode} />
         </div>
       </main>
+      </div>
     </div>
   );
 }
